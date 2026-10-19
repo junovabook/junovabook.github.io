@@ -1,0 +1,3240 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#1A0B2E">
+<meta name="description" content="JUNOVABOOK — Le monde s'exprime ici">
+<title>JUNOVABOOK</title>
+<style>
+:root{
+  --bg:#100d20;--panel:#211936;--border:#44335e;
+  --accent:#ed4dba;--home:#0f766e;--friends:#ea580c;
+  --create:#2563eb;--messages:#7c3aed;--profile:#db2777;
+  --green:#16815f;--blue:#245fbd;--orange:#b86619;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:#fff;font-family:Arial,sans-serif;padding-bottom:90px}
+header,main{max-width:720px;margin:auto}
+header{margin:12px auto;padding:14px;background:#1a0b2e;border:1px solid var(--border);border-radius:20px}
+.header-content{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.brand{min-width:0}
+.brand h1{font-size:clamp(25px,7vw,36px);margin:0;overflow-wrap:anywhere}
+.brand p{font-size:12px;color:#c9bde5}
+.novas-logo{width:88px;flex-shrink:0;text-align:center;font-weight:bold}
+.novas-top{background:var(--green);padding:10px;border-radius:10px 10px 0 0}
+.novas-stem{background:var(--green);width:42px;height:52px;margin:auto;border-radius:0 0 10px 10px;display:grid;place-items:center}
+.novas-heart{position:relative;color:var(--accent);font-size:30px}
+.novas-number{position:absolute;inset:0;display:grid;place-items:center;font-size:11px;color:white}
+main{padding:10px 14px}
+.panel,.post{background:var(--panel);border:1px solid var(--border);border-radius:18px;padding:15px;margin-bottom:14px}
+h2{font-size:18px;margin:0 0 12px}
+h3{font-size:15px;margin:12px 0}
+p{line-height:1.5;overflow-wrap:anywhere}
+small,.notice,.file-note{color:#c9bde5;font-size:12px;line-height:1.5}
+button,input,textarea,select{font:inherit}
+button{border:0;border-radius:10px;padding:11px;margin-top:7px;color:white;background:#49366b;font-size:13px;font-weight:bold;cursor:pointer}
+button:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px solid white;outline-offset:2px}
+button:disabled{opacity:.5}
+.full{width:100%}
+.hidden{display:none!important}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+.row button{flex:1}
+.gold{background:#c58a25;color:#1c102b}
+.primary{background:linear-gradient(90deg,#7c3aed,#d946ef)}
+.green{background:var(--green)}
+.blue{background:var(--blue)}
+.pink{background:var(--accent)}
+.orange{background:var(--orange)}
+.danger{background:#8b263e}
+.home{background:var(--home)}
+.friends{background:var(--friends)}
+.create{background:var(--create)}
+.messages{background:var(--messages)}
+.profile{background:var(--profile)}
+input:not([type=color]):not([type=file]),textarea,select{
+  width:100%;padding:12px;border-radius:10px;border:1px solid #574471;
+  background:#171127;color:white;margin:5px 0 10px
+}
+textarea{min-height:90px;resize:vertical}
+input[type=color],input[type=file]{width:100%;margin:8px 0;color:white}
+label{display:block;font-size:13px;margin:8px 0}
+.pill{display:inline-block;background:#38284f;border-radius:20px;padding:6px 9px;font-size:12px;margin:5px 5px 5px 0}
+.actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-top:12px}
+.actions button{margin:0;padding:11px 2px;font-size:12px;width:100%;min-width:0}
+.debate-panel,.audio-box{background:#19122a;border:1px solid var(--border);border-radius:12px;padding:12px;margin-top:12px}
+
+/* NOUVELLE APPARENCE DES COMMENTAIRES */
+.comment-list{
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+  margin-top:12px;
+  min-width:0;
+  max-width:100%;
+}
+.reply{
+  position:relative;
+  width:100%;
+  min-width:0;
+  max-width:100%;
+  padding:12px 12px 12px 16px;
+  background:linear-gradient(135deg,#1d1531,#19122a);
+  border:1px solid #574471;
+  border-left:4px solid var(--blue);
+  border-radius:14px;
+  overflow-wrap:anywhere;
+  box-shadow:0 4px 14px rgba(0,0,0,.18);
+}
+.reply.is-reply{
+  border-left-color:var(--messages);
+  background:linear-gradient(135deg,#201734,#1a1330);
+}
+.reply::before{
+  content:"";
+  position:absolute;
+  left:-8px;
+  top:22px;
+  width:8px;
+  height:2px;
+  background:#655080;
+}
+.comment-badge{
+  display:inline-block;
+  font-size:10px;
+  font-weight:bold;
+  letter-spacing:.4px;
+  padding:3px 8px;
+  border-radius:20px;
+  margin-bottom:6px;
+  background:#245fbd;
+  color:white;
+}
+.reply.is-reply .comment-badge{background:var(--messages)}
+.comment-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+  flex-wrap:wrap;
+  margin-bottom:4px;
+}
+.comment-head strong{font-size:14px}
+.reply .row{
+  display:flex;
+  gap:6px;
+  flex-wrap:wrap;
+  margin-top:8px;
+  min-width:0;
+}
+.reply .row button{
+  flex:1 1 130px;
+  min-width:0;
+  margin:0;
+  font-size:11px;
+  padding:9px 6px;
+}
+/* ============================= */
+/* COMMENTAIRES STYLE FACEBOOK   */
+/* AUCUN DÉCALAGE VERS LA DROITE */
+/* ============================= */
+
+.comment-list{
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+  margin-top:12px;
+  min-width:0;
+  max-width:100%;
+}
+
+.reply{
+  position:relative;
+  width:100%;
+  min-width:0;
+  max-width:100%;
+  margin:0 0 8px;
+  padding:10px 12px;
+  background:#1d1531;
+  border:1px solid #3a2c52;
+  border-left:3px solid #245fbd;
+  border-radius:14px;
+  overflow-wrap:anywhere;
+  box-shadow:0 4px 14px rgba(0,0,0,.18);
+}
+
+.reply::before{
+  display:none;
+  content:none;
+  width:0;
+  height:0;
+  background:transparent;
+}
+
+.reply.is-reply{
+  border-left:3px solid #7c3aed;
+  background:#19122a;
+}
+
+.comment-badge{
+  display:inline-block;
+  margin:0 0 5px;
+  font-size:10px;
+  font-weight:bold;
+  letter-spacing:.4px;
+  padding:3px 8px;
+  border-radius:20px;
+  background:#245fbd;
+  color:white;
+}
+
+.reply.is-reply .comment-badge{
+  background:#7c3aed;
+}
+
+.comment-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+  flex-wrap:wrap;
+  margin-bottom:4px;
+}
+
+.comment-head strong{
+  font-size:14px;
+}
+
+.reply p{
+  margin:4px 0;
+}
+
+.reply .row{
+  display:flex;
+  gap:6px;
+  flex-wrap:wrap;
+  margin-top:8px;
+  min-width:0;
+}
+
+.reply .row button{
+  flex:1 1 130px;
+  min-width:0;
+  margin:0;
+  font-size:11px;
+  padding:8px;
+}
+
+/* CONTENEUR DES RÉPONSES */
+/* Le -15px annule la bordure gauche + le padding du commentaire parent */
+.reply-children{
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  margin:8px 0 0;
+  margin-left:-15px;
+  margin-inline-start:-15px;
+  padding:0;
+  border:0;
+  width:calc(100% + 15px);
+  max-width:calc(100% + 15px);
+  min-width:0;
+}
+
+.reply-children .reply{
+  margin:0 0 8px;
+  margin-left:0;
+  padding:10px 12px;
+  width:100%;
+  max-width:100%;
+}
+
+.reply-children .reply-children{
+  margin:8px 0 0;
+  margin-left:-15px;
+  margin-inline-start:-15px;
+  padding:0;
+  border:0;
+  width:calc(100% + 15px);
+  max-width:calc(100% + 15px);
+}
+
+.reply-children .reply-children .reply{
+  margin:0 0 8px;
+  margin-left:0;
+  padding:10px 12px;
+  width:100%;
+  max-width:100%;
+}
+
+/* SÉCURITÉ : AUCUN DÉCALAGE CUMULÉ */
+.reply-children *{
+  margin-left:0;
+  padding-left:0;
+}
+
+.reply-children .reply{
+  padding-left:12px;
+}
+
+/* LECTEUR AUDIO JUNOVA : SANS HAUT-PARLEUR ET PLUS COMPACT */
+.reply audio,
+.audio-box audio,
+.media-preview + audio{
+  width:220px !important;
+  max-width:70% !important;
+  height:36px !important;
+  margin-top:8px !important;
+  border-radius:20px !important;
+}
+
+audio::-webkit-media-controls-mute-button{
+  display:none !important;
+}
+
+audio::-webkit-media-controls-volume-slider{
+  display:none !important;
+}
+
+audio::-webkit-media-controls-timeline{
+  max-width:110px !important;
+  }
+.media-preview{width:100%;max-height:350px;object-fit:contain;border-radius:10px;margin-top:8px;background:#100d20}
+.preview-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.preview-grid img{width:100%;max-height:170px;object-fit:cover;border-radius:8px}
+.audio-box audio{width:100%;margin-top:8px}
+.recording-status{display:flex;align-items:center;gap:8px;padding:9px;background:#100d20;border-radius:10px;margin-top:10px}
+.recording-time{font-weight:bold;font-variant-numeric:tabular-nums}
+.waveform{display:flex;align-items:center;justify-content:center;gap:3px;flex:1;height:32px;overflow:hidden}
+.waveform span{width:3px;height:8px;border-radius:4px;background:#4ade80}
+.waveform.active span{animation:wave .65s ease-in-out infinite alternate}
+.waveform span:nth-child(3n){animation-delay:.12s}
+@keyframes wave{to{height:27px}}
+.empty{text-align:center;color:#c9bde5;padding:15px}
+.tier{padding:12px;border:1px solid var(--border);border-radius:12px;margin:10px 0}
+.activity{padding:10px;border-bottom:1px solid var(--border)}
+.bottom{position:fixed;bottom:0;left:0;right:0;z-index:10;display:flex;gap:4px;overflow-x:auto;background:#1b1430;border-top:1px solid var(--border);padding:8px 3px}
+.bottom button{flex:1;min-width:66px;white-space:nowrap;margin:0;padding:10px 3px;border-radius:7px;font-size:11px}
+footer{text-align:center;color:#8f82a8;font-size:11px;padding:20px}
+hr{border:0;border-top:1px solid var(--border);margin:18px 0}
+@media(max-width:380px){
+  .actions{gap:3px}
+  .actions button{font-size:10px}
+  .novas-logo{width:75px}
+  .reply{padding:10px 10px 10px 14px}
+  .reply .row button{flex:1 1 100%}
+}
+</style>
+<style id="junovabook-remarques">
+/* 1. Titre en bleu ciel */
+.brand h1{color:#38bdf8}
+
+/* 2. Message sous le titre : majuscules espacées, blanc, dans une pastille bleu ciel */
+.brand p{
+  display:inline-block;white-space:nowrap;margin:6px 0 0;
+  padding:5px 10px;border-radius:20px;background:#0ea5e9;color:#fff;
+  font-size:10.5px;font-weight:bold;letter-spacing:2px;text-transform:uppercase;line-height:1.3;
+}
+@media(max-width:360px){.brand p{font-size:9.5px;letter-spacing:1.5px;padding:5px 8px}}
+
+/* MA VOIX JUNOVA sur deux lignes (le micro reste devant MA VOIX) */
+#expressionChoices .blue{
+  white-space:nowrap !important;
+  font-size:11px !important;
+  padding-left:2px !important;
+  padding-right:2px !important;
+  min-width:0;
+}
+
+/* Boutons DÉBATS et DIFFUSIONS */
+.actions button[onclick^="sharePost"]{white-space:nowrap}
+.actions button[onclick^="toggleComments"]{white-space:nowrap}
+
+/* 3. Un seul cadre pour le commentaire (moins de vide) */
+body .reply:not(.is-reply){
+  position:relative;
+  padding:10px 12px 10px 14px !important;
+}
+body .reply:not(.is-reply) > .reply-children{
+  margin:8px 0 0 -6px !important;
+  padding:0 !important;
+  width:auto !important;
+  max-width:none !important;
+  gap:8px;
+}
+
+/* 4. Réponses : sans cadre, une petite barre violette par réponse,
+   le long de son propre contenu seulement, toutes alignées */
+body .reply.is-reply{
+  display:grid !important;
+  grid-template-columns:2px minmax(0,1fr);
+  column-gap:6px;
+  row-gap:0;
+  position:relative;
+  background:transparent !important;
+  border:0 !important;
+  border-radius:0 !important;
+  box-shadow:none !important;
+  padding:0 !important;
+  margin:0 !important;
+  width:auto !important;
+  max-width:100% !important;
+}
+body .reply.is-reply > *{grid-column:2}
+body .reply.is-reply::before{
+  content:"" !important;
+  display:block !important;
+  position:static !important;
+  grid-column:1;
+  grid-row:1 / 40;
+  width:2px !important;
+  height:auto !important;
+  background:#7c3aed !important;
+  border-radius:1px;
+}
+body .reply.is-reply > .reply-children{
+  grid-column:1 / -1;
+  grid-row:40;
+  margin:8px 0 0 0 !important;
+  padding:0 !important;
+  width:auto !important;
+  max-width:none !important;
+  gap:8px;
+}
+
+/* 5. Date courte à droite de l'étiquette, sur la même ligne */
+body .reply > .comment-head small{
+  position:absolute;
+  top:0;right:0;
+  line-height:18px;
+  font-size:11px;
+  white-space:nowrap;
+}
+body .reply:not(.is-reply) > .comment-head small{top:10px;right:12px}
+@media(max-width:340px){body .reply > .comment-head small{font-size:10px}}
+
+/* 6. « Répondre » et « Réponse audio » côte à côte */
+body .reply .row{display:flex !important;flex-wrap:nowrap !important;gap:6px}
+body .reply .row button{
+  flex:1 1 0 !important;
+  min-width:0 !important;
+  width:auto !important;
+  margin-top:4px;
+  padding:8px 4px;
+  font-size:11px;
+  line-height:1.2;
+}
+
+/* 8. Moins de vides inutiles */
+body .reply .comment-badge{margin-bottom:4px}
+body .reply .comment-head{margin-bottom:2px}
+body .reply p{margin:2px 0 4px}
+
+/* Lecteur audio maison : triangle doré, durée lavande, barre rose */
+.jb-audio{display:flex;align-items:center;gap:10px;height:46px;width:100%;max-width:260px;margin:2px 0 4px}
+.jb-audio audio{display:none !important}
+.jb-play{
+  width:44px !important;height:44px !important;flex:0 0 44px;
+  padding:0 !important;margin:0 !important;border:0 !important;border-radius:50% !important;
+  background:transparent !important;box-shadow:none !important;
+  display:flex;align-items:center;justify-content:center;cursor:pointer;
+}
+.jb-time{font-size:14px;color:#e5d4ff;min-width:34px;font-variant-numeric:tabular-nums}
+.jb-track{position:relative;flex:1 1 auto;min-width:50px;max-width:140px;height:28px;cursor:pointer;display:flex;align-items:center}
+.jb-rail{position:absolute;left:0;right:0;height:4px;border-radius:4px;background:#574471}
+.jb-fill{position:absolute;left:0;height:4px;border-radius:4px;background:#ff4fc3;width:0}
+.jb-dot{position:absolute;top:50%;left:0;width:12px;height:12px;margin:-6px 0 0 -6px;border-radius:50%;background:#ff4fc3}
+
+/* Marges des publications resserrées */
+body .post{padding:11px 12px;margin-bottom:8px}
+
+/* En-tête plus compact et badge NOVAS plus petit (même forme, mêmes couleurs) */
+body header{padding:10px 14px}
+body .novas-logo{width:64px;font-size:11px}
+body .novas-top{padding:6px;border-radius:8px 8px 0 0}
+body .novas-stem{width:30px;height:36px;border-radius:0 0 8px 8px}
+body .novas-heart{font-size:22px}
+body .novas-number{font-size:9px}
+
+
+/* Photo de profil : petits ronds à côté du nom */
+.avatar{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;flex:0 0 26px;border-radius:50%;overflow:hidden;background:#7c3aed;color:#fff;font-size:13px;font-weight:bold;margin-right:7px;vertical-align:middle}
+body .avatar img{width:100% !important;height:100% !important;max-width:none !important;margin:0 !important;border-radius:0 !important;object-fit:cover;display:block}
+strong.who{display:inline-flex;align-items:center}
+body .post strong.who .avatar{width:32px;height:32px;flex-basis:32px;font-size:15px}
+body .reply .comment-head strong{display:inline-flex;align-items:center}
+body .reply .avatar{width:24px;height:24px;flex-basis:24px;font-size:12px;margin-right:6px}
+.profile-photo{margin:6px 0}
+body .profile-photo .avatar{width:72px;height:72px;flex-basis:72px;font-size:30px;margin:0}
+
+/* Notifications JUNOVAS : photo, nom, texte, date courte */
+.activity-row{display:flex;gap:10px;align-items:flex-start}
+body .activity-row .avatar{width:36px;height:36px;flex-basis:36px;font-size:16px;margin:0}
+.activity-body{min-width:0}
+.activity-body strong{display:block;font-size:14px}
+.activity-body span{display:block;color:#e5d4ff;font-size:14px}
+.activity-body small{display:block;color:#c9bde5;font-size:11px;margin-top:2px}
+.activity.unread .activity-body strong::before{content:"● ";color:#ff4fc3}
+
+/* Compteur JUNOVAS : pastille rose sur le bouton du bas */
+.bottom button{position:relative}
+.count-badge{position:absolute;top:1px;right:3px;min-width:17px;height:17px;padding:0 4px;border-radius:9px;background:#ff4fc3;color:#fff;font-size:11px;line-height:17px;font-weight:bold;text-align:center}
+.count-badge[hidden]{display:none}
+
+/* Choix de l'extrait audio */
+#voiceTrimStart{width:100%;margin:8px 0}
+
+
+/* ===== Débat vocal ===== */
+.debate-top{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.debate-top h3{margin:0}
+.debate-time{font-size:12px;color:#c9bde5;white-space:nowrap}
+.result-bar{display:flex;height:12px;border-radius:6px;overflow:hidden;margin:10px 0 4px;background:#574471}
+.result-bar .res-a{background:#16815f}
+.result-bar .res-b{background:#ec4899}
+.result-labels{display:flex;justify-content:space-between;font-size:12px;font-weight:bold;margin-bottom:8px}
+.lab-a{color:#4ade80}
+.lab-b{color:#f472b6}
+button.camp-a{background:#16815f}
+button.camp-b{background:#ec4899}
+button.camp-a:disabled,button.camp-b:disabled{opacity:.85}
+.camp-tag{display:inline-block;margin-left:6px;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:bold;color:#fff;vertical-align:middle}
+.camp-tag.camp-a{background:#16815f}
+.camp-tag.camp-b{background:#ec4899}
+button.camp-a.selected,button.camp-b.selected{box-shadow:inset 0 0 0 3px #fff}
+.daily-debate{border-color:#7c3aed}
+.daily-question{font-size:17px;font-weight:bold;margin:8px 0}
+
+/* ===== Boutons dont la couleur se règle dans PROFIL (texte noir ou blanc automatique) ===== */
+#expressionChoices .blue{background:var(--voice,#245fbd);color:var(--voice-text,#fff)}
+#expressionButton{background:var(--express,#c58a25);color:var(--express-text,#1c102b)}
+button.primary[onclick^="showComposer('publication')"]{background:linear-gradient(90deg,var(--pub-a,#7c3aed),var(--pub-b,#d946ef));color:var(--pub-text,#fff)}
+button.green[onclick^="showComposer('debat')"]{background:var(--debat-launch,#16815f);color:var(--debat-launch-text,#fff)}
+.actions button[onclick^="toggleComments"]{background:var(--debats,#245fbd) !important;color:var(--debats-text,#fff)}
+.actions button[onclick^="sharePost"]{background:var(--diffusions,#16815f) !important;color:var(--diffusions-text,#fff)}
+.actions button[onclick^="lovePost"]{color:var(--accent-text,#fff)}
+.bottom .home{color:var(--home-text,#fff)}
+.bottom .friends{color:var(--friends-text,#fff)}
+.bottom .create{color:var(--create-text,#fff)}
+.bottom .messages{color:var(--messages-text,#fff)}
+.bottom .profile{color:var(--profile-text,#fff)}
+
+
+/* ===== Lien de profil et contacts ===== */
+.link-card{position:fixed;inset:0;z-index:50;background:rgba(14,10,31,.82);display:flex;align-items:center;justify-content:center;padding:16px}
+.link-card-box{background:#1a1330;border:1px solid #574471;border-radius:18px;padding:16px;max-width:360px;width:100%}
+.link-card-who{display:flex;align-items:center;gap:10px;margin:10px 0}
+body .link-card .avatar{width:48px;height:48px;flex-basis:48px;font-size:20px;margin:0}
+.contact-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid #44335e}
+.contact-row strong{flex:1;min-width:0;overflow-wrap:anywhere}
+.contact-row button{margin:0;padding:8px 12px;font-size:12px}
+#profileLink{font-size:12px}
+
+/* 3bis. Contour bleu ciel dans les champs de saisie */
+input:focus,textarea:focus,select:focus{border-color:#38bdf8}
+input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px solid #38bdf8;outline-offset:2px}
+</style>
+</head>
+<body>
+<header>
+  <div class="header-content">
+    <div class="brand">
+      <h1>JUNOVABOOK</h1>
+      <p>Le monde s'exprime ici</p>
+    </div>
+    <div class="novas-logo" aria-label="Solde NOVAS">
+      <div class="novas-top">NOVAS</div>
+      <div class="novas-stem"><span class="novas-heart">♥<span class="novas-number" id="novasCount">0</span></span></div>
+    </div>
+  </div>
+</header>
+
+<main>
+<section id="home">
+  <div class="panel">
+    <h2>✨ L'espace JUNOVAS</h2>
+    <p>Exprime tes idées, découvre des opinions et échange avec la communauté.</p>
+    <span class="pill">⚡ MÉGAS : <strong id="megasCount">20</strong></span>
+    <span class="pill">🪙 NOVAS : <strong id="rewardCount">0</strong></span>
+    <button class="gold full" id="expressionButton" onclick="toggleExpression()" aria-expanded="false">S'EXPRIMER</button>
+    <div id="expressionChoices" class="row hidden">
+      <button class="primary" onclick="showComposer('publication')">PUBLICATION LIBRE</button>
+      <button class="green" onclick="showComposer('debat')">LANCER UN DÉBAT</button>
+      <button class="blue" onclick="openVoiceComposer()" style="white-space:normal; line-height:1.3; text-align:center;">
+        🎙️ MA VOIX<br>JUNOVA
+      </button>
+    </div>
+  </div>
+
+  <section id="composer" class="panel hidden">
+    <h2 id="composerTitle">Créer une publication</h2>
+    <label for="postText">Ton message</label>
+    <textarea id="postText" maxlength="5000" placeholder="Exprime tes idées ici..."></textarea>
+    <label for="postMedia">Ajouter jusqu'à 4 photos ou une vidéo</label>
+    <input id="postMedia" type="file" accept="image/*,video/*" multiple>
+    <p class="file-note">Choisis une vidéo ou jusqu’à quatre photos. Les photos de plus de 2,5 Mo sont réduites automatiquement. Audio : 0,5 Mo pour un enregistrement au micro ; un fichier audio importé peut aller jusqu’à 5 Mo, et au-delà de 2,5 Mo tu choisis la partie à garder.</p>
+    <div id="mediaPendingPreview" class="preview-grid"></div>
+    <div id="pollFields" class="hidden">
+      <label for="optionA">Premier choix</label><input id="optionA" maxlength="100" placeholder="POUR">
+      <label for="optionB">Deuxième choix</label><input id="optionB" maxlength="100" placeholder="CONTRE">
+      <label for="debateDuration">Durée du débat</label>
+      <select id="debateDuration">
+        <option value="0" selected>Illimitée</option>
+        <option value="24">24 heures</option>
+        <option value="72">3 jours</option>
+        <option value="168">7 jours</option>
+      </select>
+      <p class="notice">Illimitée : on peut débattre à tout moment. Sinon, le débat se ferme tout seul et le résultat final reste affiché.</p>
+    </div>
+    <div class="row">
+      <button class="primary" onclick="publish()">Publier</button>
+      <button onclick="hideComposer()">Annuler</button>
+    </div>
+  </section>
+
+  <section id="voiceComposer" class="panel hidden">
+    <h2>🎙️ MA VOIX<br>JUNOVA</h2>
+    <p>Choisis un fichier audio ou enregistre ta voix. Publication : 5 MÉGAS de démonstration.</p>
+    <label for="voiceText">Texte facultatif</label>
+    <textarea id="voiceText" maxlength="1500" placeholder="Accompagne ta voix d'un texte..."></textarea>
+    <label for="voiceFile">Choisir un fichier audio</label>
+    <input id="voiceFile" type="file" accept="audio/*">
+    <div class="row">
+      <button id="recordVoiceBtn" class="primary" onclick="toggleVoiceRecording()">🔴 Enregistrer</button>
+      <button onclick="stopVoiceRecording()">Arrêter</button>
+    </div>
+    <div id="voiceRecordingStatus" class="recording-status hidden">
+      <span class="recording-time" id="voiceTimer">00:00</span>
+      <div class="waveform" id="voiceWave"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
+      <strong>En cours…</strong>
+    </div>
+    <div id="voiceTrimBox" class="audio-box hidden">
+      <p id="voiceTrimStatus" class="notice"></p>
+      <div id="voiceTrimControls" class="hidden">
+        <input id="voiceTrimStart" type="range" min="0" max="0" value="0" step="1" oninput="updateVoiceTrimLabel()">
+        <p id="voiceTrimLabel" class="notice"></p>
+        <button class="green full" onclick="validateVoiceTrim()">Valider l'extrait</button>
+      </div>
+    </div>
+    <div id="voicePreview" class="audio-box hidden"></div>
+    <div class="row">
+      <button id="publishVoiceBtn" class="green" onclick="publishVoice()" disabled>Publier ma voix · 5 MÉGAS</button>
+      <button onclick="cancelVoiceComposer()">Annuler</button>
+    </div>
+    <p class="notice">Le microphone nécessite l'autorisation du navigateur. Les données restent sur cet appareil.</p>
+  </section>
+
+  <div id="dailyDebate" class="hidden"></div>
+  <div id="feed"></div>
+</section>
+
+<section id="discover" class="panel hidden">
+  <h2>🌍 DÉCOUVRIR</h2>
+  <label for="discoverSearch">Rechercher dans les publications locales</label>
+  <input id="discoverSearch" placeholder="Mot ou sujet">
+  <button class="blue full" onclick="renderDiscover()">Rechercher</button>
+  <button class="full" onclick="clearDiscoverSearch()">Effacer la recherche</button>
+  <div id="discoverResults"></div>
+  </section><section id="friends" class="panel hidden">
+  <h2>AMI</h2>
+  <p>La recherche réelle de membres nécessite un serveur commun.</p>
+  <label for="friendSearch">Rechercher un nom dans ce prototype</label>
+  <input id="friendSearch" placeholder="Nom ou pseudonyme">
+  <button class="orange full" onclick="searchFriends()">Rechercher</button>
+  <div id="friendResults"></div>
+  <hr><h3>Mes contacts</h3>
+  <div id="contactList"></div>
+  <p class="notice">Ajoute quelqu'un en ouvrant le lien de profil qu'il partage.</p>
+</section>
+
+<section id="messages" class="panel hidden">
+  <h2>MESSAGES</h2>
+  <p>La messagerie privée entre membres n'est pas encore connectée à un serveur sécurisé.</p>
+  <textarea id="draftMessage" placeholder="Préparer un message"></textarea>
+  <button class="primary full" onclick="alert('La messagerie en ligne nécessite encore un serveur sécurisé.')">Continuer</button>
+</section>
+
+<section id="junovas" class="panel hidden">
+  <h2>🔔 JUNOVAS — Notifications</h2>
+  <p class="notice">Historique local à cette démonstration.</p>
+  <div class="row">
+    <button class="blue" onclick="markActivitiesRead()">Marquer comme lues</button>
+    <button onclick="clearActivities()">Effacer l'historique</button>
+  </div>
+  <div id="activityList"></div>
+</section>
+
+<section id="profile" class="panel hidden">
+  <h2>PROFIL</h2>
+  <label for="displayName">Nom affiché</label>
+  <input id="displayName" maxlength="60" placeholder="Ton nom ou pseudonyme">
+  <button class="pink full" onclick="saveProfile()">Enregistrer le nom</button>
+  <p id="nameLimitNote" class="notice"></p>
+
+  <hr><h3>Photo de profil</h3>
+  <div id="profilePhotoPreview" class="profile-photo"></div>
+  <label for="profilePhoto">Choisir ma photo</label>
+  <input id="profilePhoto" type="file" accept="image/*" onchange="chooseProfilePhoto(this)">
+  <button class="full" onclick="removeProfilePhoto()">Retirer ma photo</button>
+  <p id="photoLimitNote" class="notice"></p>
+  <p class="notice">La photo est enregistrée sur cet appareil et reste liée à ton profil, même si tu changes de nom.</p>
+
+  <hr><h3>Mon lien de profil</h3>
+  <input id="profileLink" readonly>
+  <button class="full" onclick="copyProfileLink()">Copier mon lien</button>
+  <button class="full" onclick="shareProfileLink()">Partager mon lien</button>
+  <p class="notice">Celui qui ouvre ce lien peut t'ajouter à ses contacts. Le nom dans le lien n'est pas vérifié tant qu'il n'y a pas de comptes sur un espace commun.</p>
+
+  <hr><h3>PARAMÈTRES → APPARENCE</h3>
+  <label for="accentColor">Couleur des LOVES</label><input id="accentColor" type="color" value="#ed4dba">
+  <label for="homeColor">Couleur ACCUEIL</label><input id="homeColor" type="color" value="#0f766e">
+  <label for="friendsColor">Couleur AMI</label><input id="friendsColor" type="color" value="#ea580c">
+  <label for="createColor">Couleur JUNOVAS</label><input id="createColor" type="color" value="#2563eb">
+  <label for="messagesColor">Couleur MESSAGE</label><input id="messagesColor" type="color" value="#7c3aed">
+  <label for="profileColor">Couleur PROFIL</label><input id="profileColor" type="color" value="#db2777">
+  <label for="voiceColor">Couleur MA VOIX JUNOVA</label><input id="voiceColor" type="color" value="#245fbd">
+  <label for="debatsColor">Couleur DÉBATS</label><input id="debatsColor" type="color" value="#245fbd">
+  <label for="diffusionsColor">Couleur DIFFUSIONS</label><input id="diffusionsColor" type="color" value="#16815f">
+  <label for="expressColor">Couleur S'EXPRIMER</label><input id="expressColor" type="color" value="#c58a25">
+  <label for="publicationAColor">Couleur PUBLICATION LIBRE (début)</label><input id="publicationAColor" type="color" value="#7c3aed">
+  <label for="publicationBColor">Couleur PUBLICATION LIBRE (fin)</label><input id="publicationBColor" type="color" value="#d946ef">
+  <label for="debatLaunchColor">Couleur LANCER UN DÉBAT</label><input id="debatLaunchColor" type="color" value="#16815f">
+  <button class="primary full" onclick="applyColors()">Appliquer les couleurs</button>
+  <button class="full" onclick="resetColors()">Réinitialiser les couleurs</button>
+  <p class="notice">Les couleurs sont sauvegardées sur cet appareil.</p>
+
+  <hr><h3>Favoris</h3>
+  <button class="blue full" onclick="showSaved()">Voir mes favoris</button>
+  <div id="savedPosts"></div>
+
+  <hr><h3>Accès JUNOVABOOK</h3>
+  <div class="tier"><h3>🌱 JUNOVA LIBRE</h3><p>Prototype et fonctions locales disponibles.</p></div>
+  <div class="tier"><h3>✨ JUNOVA PLUS</h3><p>Évolutions avancées à définir.</p></div>
+  <div class="tier"><h3>🚀 JUNOVA PRO</h3><p>Évolutions avancées à définir.</p></div>
+  <p class="notice">Aucun paiement ni abonnement n'est activé.</p>
+
+  <hr><h3>Solde MÉGAS</h3>
+  <p>Solde actuel : <strong id="profileMegas">20</strong></p>
+  <button class="green full" onclick="claimFreeMegas()">Réclamer 3 MÉGAS gratuits</button>
+  <p class="notice">Les MÉGAS et NOVAS n'ont aucune valeur monétaire dans ce prototype.</p>
+
+  <hr><h3>Installer JUNOVABOOK</h3>
+  <p>Tu peux ajouter le site à l'écran d'accueil si le navigateur le permet.</p>
+  <button class="blue full" onclick="installApp()">👉 INSTALLER JUNOVABOOK</button>
+
+  <hr><h3>Compte</h3>
+  <p class="notice">Les comptes sécurisés et la synchronisation ne sont pas encore activés. Ne saisis pas de vrai mot de passe ici.</p>
+  <button class="full" onclick="alert('La création de compte nécessite un serveur sécurisé.')">Créer un compte</button>
+  <button class="full" onclick="alert('La connexion nécessite un serveur sécurisé.')">Se connecter</button>
+
+  <hr><button class="danger full" onclick="clearLocalPosts()">Effacer les publications de cet appareil</button>
+</section>
+</main>
+
+<nav class="bottom" aria-label="Navigation principale">
+  <button class="home" onclick="navigate('home')">ACCUEIL</button>
+  <button class="friends" onclick="navigate('friends')">AMI</button>
+  <button class="create" onclick="navigate('junovas')">JUNOVAS</button>
+  <button class="messages" onclick="navigate('messages')">MESSAGE</button>
+  <button class="profile" onclick="navigate('profile')">PROFIL</button>
+</nav>
+<footer>© 2026 JUNOVABOOK · Prototype en développement</footer>
+
+<script>
+'use strict';
+
+const STORE='junovabook_posts_v2';
+const SAVED_STORE='junovabook_saved';
+const PROFILE_STORE='junovabook_profile';
+const ACTIVITY_STORE='junovabook_activities';
+const MEGAS_STORE='junovabook_megas';
+const NOVAS_STORE='junovabook_novas';
+
+let posts=[];
+let saved=new Set();
+let activities=[];
+let megas=20;
+let novas=0;
+let composerMode='publication';
+let recorder=null;
+let recordingStream=null;
+let recordingChunks=[];
+let voiceBlob=null;
+let voiceTimerInterval=null;
+let voiceStart=0;
+let commentRecorder=null;
+let commentChunks=[];
+let commentStream=null;
+let commentTimerInterval=null;
+let commentStart=0;
+let deferredInstallPrompt=null;
+
+function readJSON(key,fallback){
+  try{
+    const value=localStorage.getItem(key);
+    return value===null?fallback:JSON.parse(value);
+  }catch(e){return fallback}
+}
+
+function saveJSON(key,value){
+  try{
+    localStorage.setItem(key,JSON.stringify(value));
+    return true;
+  }catch(e){
+    alert('Le stockage de cet appareil est plein. Supprime des anciennes publications ou des médias.');
+    return false;
+  }
+}
+
+function esc(value){
+  return String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function safeId(){
+  return Date.now().toString(36)+Math.random().toString(36).slice(2,8);
+}
+
+function profileName(){
+  return (localStorage.getItem(PROFILE_STORE)||'Membre JUNOVABOOK').trim()||'Membre JUNOVABOOK';
+}
+
+function init(){
+  posts=readJSON(STORE,[]);
+  saved=new Set(readJSON(SAVED_STORE,[]).map(String));
+  activities=readJSON(ACTIVITY_STORE,[]);
+  megas=Number(localStorage.getItem(MEGAS_STORE)??20);
+  novas=Number(localStorage.getItem(NOVAS_STORE)??0);
+  updateBalances();
+  loadProfile();
+  handleProfileLink();
+  loadColors();
+  renderFeed();
+  showSaved();
+  renderActivities();
+
+  if(!posts.length){
+    posts=[{
+      id:safeId(),
+      name:'JUNOVABOOK',
+      text:'Bienvenue sur JUNOVABOOK ! Partage tes idées et lance des débats respectueux.',
+      media:[],
+      date:new Date().toISOString(),
+      loves:0,
+      comments:[],
+      type:'publication',
+      poll:null
+    }];
+    persistPosts();
+  }
+  renderFeed();
+  registerServiceWorker();
+}
+
+function persistPosts(){
+  return saveJSON(STORE,posts);
+}
+
+function updateBalances(){
+  document.getElementById('megasCount').textContent=megas;
+  document.getElementById('profileMegas').textContent=megas;
+  document.getElementById('rewardCount').textContent=novas;
+  document.getElementById('novasCount').textContent=novas;
+  localStorage.setItem(MEGAS_STORE,String(megas));
+  localStorage.setItem(NOVAS_STORE,String(novas));
+}
+
+function addActivity(text){
+  activities.unshift({id:safeId(),name:profileName(),authorId:myUserId(),text,time:new Date().toLocaleString(),read:false});
+  activities=activities.slice(0,100);
+  saveJSON(ACTIVITY_STORE,activities);
+  renderActivities();
+}
+
+function renderActivities(){
+  updateJunovasCounter();
+  const el=document.getElementById('activityList');
+  if(!el)return;
+  el.innerHTML='';
+
+  if(!activities.length){
+    el.innerHTML='<p class="empty">Aucune notification.</p>';
+    return;
+  }
+
+  activities.forEach(a=>{
+    const div=document.createElement('div');
+    div.className='activity'+(a.read?'':' unread');
+    if(a.name){
+      const row=document.createElement('div');
+      row.className='activity-row';
+      row.innerHTML=avatarHTML(displayName(a),a.authorId);
+      const body=document.createElement('div');
+      body.className='activity-body';
+      const who=document.createElement('strong');
+      who.textContent=displayName(a);
+      const what=document.createElement('span');
+      what.textContent=a.text;
+      const when=document.createElement('small');
+      when.textContent=shortDate(a.time);
+      body.append(who,what,when);
+      row.appendChild(body);
+      div.appendChild(row);
+    }else{
+      div.textContent=(a.read?'':'🔔 ')+a.text+' — '+a.time;
+    }
+    el.appendChild(div);
+  });
+}
+
+function markActivitiesRead(){
+  activities=activities.map(a=>({...a,read:true}));
+  saveJSON(ACTIVITY_STORE,activities);
+  renderActivities();
+}
+
+function clearActivities(){
+  if(!confirm('Effacer les notifications locales ?'))return;
+  activities=[];
+  saveJSON(ACTIVITY_STORE,activities);
+  renderActivities();
+}
+
+function navigate(section){
+  document.querySelectorAll('main > section').forEach(el=>el.classList.add('hidden'));
+  const target=document.getElementById(section);
+  if(target)target.classList.remove('hidden');
+  if(section==='home')renderFeed();
+  if(section==='discover')renderDiscover();
+  if(section==='profile')showSaved();
+  if(section==='junovas')renderActivities();
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+function toggleExpression(){
+  const box=document.getElementById('expressionChoices');
+  box.classList.toggle('hidden');
+  document.getElementById('expressionButton').setAttribute('aria-expanded',String(!box.classList.contains('hidden')));
+}
+
+function showComposer(mode){
+  composerMode=mode;
+  document.getElementById('composer').classList.remove('hidden');
+  document.getElementById('voiceComposer').classList.add('hidden');
+  document.getElementById('composerTitle').textContent=mode==='debat'?'Lancer un débat':'Créer une publication';
+  document.getElementById('pollFields').classList.toggle('hidden',mode!=='debat');
+  document.getElementById('postText').value='';
+  document.getElementById('postMedia').value='';
+  document.getElementById('mediaPendingPreview').innerHTML='';
+  navigate('home');
+  document.getElementById('composer').classList.remove('hidden');
+  document.getElementById('postText').focus();
+}
+
+function hideComposer(){
+  document.getElementById('composer').classList.add('hidden');
+}
+
+function fileToDataURL(file){
+  return new Promise((resolve,reject)=>{
+    const reader=new FileReader();
+    reader.onload=()=>resolve(reader.result);
+    reader.onerror=reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+document.getElementById('postMedia').addEventListener('change',async function(){
+  const files=[...this.files];
+  const preview=document.getElementById('mediaPendingPreview');
+  preview.innerHTML='';
+
+  if(files.length>4){
+    alert('Choisis au maximum quatre fichiers.');
+    this.value='';
+    return;
+  }
+
+  if(files.some(f=>!f.type.startsWith('image/'))&&files.length>1){
+    alert('Pour une vidéo, sélectionne un seul fichier.');
+    this.value='';
+    return;
+  }
+
+  let shownFiles=files;
+  let shrunk=0,failed=0;
+  const tooBig=f=>f.type.startsWith('image/')&&f.type!=='image/gif'&&f.size>2.5*1024*1024;
+
+  if(files.some(tooBig)){
+    preview.innerHTML='<p class="notice" style="grid-column:1/-1">Réduction de la photo…</p>';
+    const adjusted=[];
+    for(const f of files){
+      if(tooBig(f)){
+        try{
+          adjusted.push(await shrinkImageFile(f,2500000));
+          shrunk++;
+        }catch(e){
+          adjusted.push(f);
+          failed++;
+        }
+      }else{
+        adjusted.push(f);
+      }
+    }
+    if(shrunk){
+      const dt=new DataTransfer();
+      adjusted.forEach(f=>dt.items.add(f));
+      this.files=dt.files;
+    }
+    shownFiles=adjusted;
+    preview.innerHTML='';
+  }
+
+  for(const file of shownFiles){
+    if(file.type.startsWith('image/')){
+      const img=document.createElement('img');
+      img.alt='Aperçu de la photo';
+      img.src=URL.createObjectURL(file);
+      preview.appendChild(img);
+    }
+  }
+
+  if(shrunk){
+    const note=document.createElement('p');
+    note.className='notice';
+    note.style.gridColumn='1/-1';
+    note.textContent=shrunk>1?'Photos réduites pour tenir dans 2,5 Mo.':'Photo réduite pour tenir dans 2,5 Mo.';
+    preview.appendChild(note);
+  }
+  if(failed){
+    const note=document.createElement('p');
+    note.className='notice';
+    note.style.gridColumn='1/-1';
+    note.textContent='Impossible de réduire une photo : elle dépasse 2,5 Mo.';
+    preview.appendChild(note);
+  }
+});
+
+async function publish(){
+  const text=document.getElementById('postText').value.trim();
+  const files=[...document.getElementById('postMedia').files];
+
+  if(!text&&!files.length){
+    alert('Écris un message ou ajoute un média.');
+    return;
+  }
+
+  if(composerMode==='debat'&&
+    (!document.getElementById('optionA').value.trim()||
+     !document.getElementById('optionB').value.trim())){
+    alert('Ajoute les deux choix du débat.');
+    return;
+  }
+
+  const media=[];
+
+  try{
+    for(const file of files){
+      if(file.size>2.5*1024*1024){
+        alert('Le fichier dépasse 2,5 Mo.');
+        return;
+      }
+      media.push({
+        type:file.type.startsWith('video/')?'video':'image',
+        data:await fileToDataURL(file),
+        name:file.name
+      });
+    }
+  }catch(e){
+    alert('Impossible de lire ce média.');
+    return;
+  }
+
+  const post={
+    id:safeId(),
+    name:profileName(),authorId:myUserId(),
+    text,
+    media,
+    date:new Date().toISOString(),
+    loves:0,
+    comments:[],
+    type:composerMode,
+    poll:composerMode==='debat'?{
+      options:[
+        document.getElementById('optionA').value.trim(),
+        document.getElementById('optionB').value.trim()
+      ],
+      votes:[0,0],
+      voted:false,
+      endsAt:debateEndsAt(),
+      events:[]
+    }:null
+  };
+
+  posts.unshift(post);
+
+  if(!persistPosts()){
+    posts.shift();
+    return;
+  }
+
+  addActivity(composerMode==='debat'?'Nouveau débat publié':'Nouvelle publication publiée');
+  hideComposer();
+  renderFeed();
+}
+
+function openVoiceComposer(){
+  navigate('home');
+  document.getElementById('composer').classList.add('hidden');
+  document.getElementById('voiceComposer').classList.remove('hidden');
+}
+
+function cancelVoiceComposer(){
+  hideVoiceTrim();
+  stopVoiceRecording();
+  voiceBlob=null;
+  document.getElementById('voiceFile').value='';
+  document.getElementById('voiceText').value='';
+  document.getElementById('voicePreview').classList.add('hidden');
+  document.getElementById('publishVoiceBtn').disabled=true;
+  document.getElementById('voiceComposer').classList.add('hidden');
+}
+
+function formatTime(seconds){
+  const s=Math.max(0,Math.floor(seconds));
+  return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0');
+}
+
+function startTimer(elementId,start){
+  const el=document.getElementById(elementId);
+  return setInterval(()=>{
+    el.textContent=formatTime((Date.now()-start)/1000);
+  },500);
+}
+
+async function toggleVoiceRecording(){
+  if(recorder&&recorder.state==='recording'){
+    stopVoiceRecording();
+    return;
+  }
+
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia||!window.MediaRecorder){
+    alert('Ton navigateur ne permet pas cet enregistrement. Choisis un fichier audio à la place.');
+    return;
+  }
+
+  try{
+    recordingStream=await navigator.mediaDevices.getUserMedia({audio:true});
+    recordingChunks=[];
+    recorder=new MediaRecorder(recordingStream);
+
+    recorder.ondataavailable=e=>{
+      if(e.data.size)recordingChunks.push(e.data);
+    };
+
+    recorder.onstop=()=>{
+      voiceBlob=new Blob(recordingChunks,{type:recorder.mimeType||'audio/webm'});
+      recordingStream?.getTracks().forEach(t=>t.stop());
+      recordingStream=null;
+      clearInterval(voiceTimerInterval);
+      document.getElementById('voiceRecordingStatus').classList.add('hidden');
+      document.getElementById('voiceWave').classList.remove('active');
+
+      if(voiceBlob.size>0.5*1024*1024){
+        voiceBlob=null;
+        document.getElementById('publishVoiceBtn').disabled=true;
+        document.getElementById('voicePreview').classList.add('hidden');
+        alert('L’enregistrement vocal dépasse 0,5 Mo. Enregistre un message plus court.');
+        document.getElementById('recordVoiceBtn').textContent='🔴 Réenregistrer';
+        return;
+      }
+
+      showVoicePreview(voiceBlob);
+      document.getElementById('publishVoiceBtn').disabled=false;
+      document.getElementById('recordVoiceBtn').textContent='🔴 Réenregistrer';
+    };
+
+    voiceStart=Date.now();
+    document.getElementById('voiceTimer').textContent='00:00';
+    document.getElementById('voiceRecordingStatus').classList.remove('hidden');
+    document.getElementById('voiceWave').classList.add('active');
+    voiceTimerInterval=startTimer('voiceTimer',voiceStart);
+    recorder.start();
+    document.getElementById('recordVoiceBtn').textContent='⏹ Arrêter';
+  }catch(e){
+    alert('Autorise le microphone ou sélectionne un fichier audio.');
+  }
+}
+
+function stopVoiceRecording(){
+  if(recorder&&recorder.state==='recording')recorder.stop();
+  if(recordingStream){
+    recordingStream.getTracks().forEach(t=>t.stop());
+    recordingStream=null;
+  }
+  clearInterval(voiceTimerInterval);
+  document.getElementById('voiceWave').classList.remove('active');
+}
+
+function showVoicePreview(blob){
+  const box=document.getElementById('voicePreview');
+  box.innerHTML='';
+  const audio=document.createElement('audio');
+  audio.controls=true;
+  audio.src=URL.createObjectURL(blob);
+  box.appendChild(audio);
+  box.classList.remove('hidden');
+}document.getElementById('voiceFile').addEventListener('change',function(){
+  const file=this.files[0];
+  if(!file)return;
+
+  hideVoiceTrim();
+
+  if(file.size>2.5*1024*1024){
+    voiceBlob=null;
+    document.getElementById('publishVoiceBtn').disabled=true;
+    document.getElementById('voicePreview').classList.add('hidden');
+    startVoiceTrim(file,this);
+    return;
+  }
+
+  voiceBlob=file;
+  showVoicePreview(file);
+  document.getElementById('publishVoiceBtn').disabled=false;
+});
+
+async function publishVoice(){
+  if(megas<5){
+    alert('Il te faut 5 MÉGAS. Réclame d’abord les MÉGAS gratuits dans ton profil.');
+    return;
+  }
+
+  const file=document.getElementById('voiceFile').files[0];
+  const blob=file||voiceBlob;
+
+  if(!blob){
+    alert('Enregistre ta voix ou choisis un fichier audio.');
+    return;
+  }
+
+  try{
+    if(file&&file.size>2.5*1024*1024){
+      alert('Le fichier audio dépasse 2,5 Mo.');
+      return;
+    }
+
+    if(!file&&blob.size>0.5*1024*1024){
+      alert('L’enregistrement vocal dépasse 0,5 Mo.');
+      return;
+    }
+
+    const data=await fileToDataURL(blob);
+
+    const post={
+      id:safeId(),
+      name:profileName(),authorId:myUserId(),
+      text:document.getElementById('voiceText').value.trim(),
+      media:[{type:'audio',data}],
+      date:new Date().toISOString(),
+      loves:0,
+      comments:[],
+      type:'voice',
+      poll:null
+    };
+
+    posts.unshift(post);
+
+    if(!persistPosts()){
+      posts.shift();
+      return;
+    }
+
+    megas-=5;
+    updateBalances();
+    addActivity('Publication vocale publiée · 5 MÉGAS utilisés');
+    cancelVoiceComposer();
+    renderFeed();
+  }catch(e){
+    alert('Impossible de sauvegarder cet audio.');
+  }
+}
+
+function mediaHTML(media){
+  if(!media)return '';
+
+  if(media.type==='audio'){
+    return `<div class="jb-audio">
+      <button type="button" class="jb-play" aria-label="Lecture ou pause"><svg class="jb-ico" viewBox="0 0 24 24" width="36" height="36" aria-hidden="true"><polygon points="5,1 22,12 5,23" fill="#fbbf24"></polygon></svg></button>
+      <span class="jb-time">0:00</span>
+      <div class="jb-track" role="slider" aria-label="Position de lecture" tabindex="0"><div class="jb-rail"></div><div class="jb-fill"></div><div class="jb-dot"></div></div>
+      <audio preload="metadata" src="${esc(media.data)}"></audio>
+    </div>`;
+  }
+
+  if(media.type==='video'){
+    return `<video class="media-preview" controls preload="metadata" src="${esc(media.data)}"></video>`;
+  }
+
+  return `<img class="media-preview" src="${esc(media.data)}" alt="Média de la publication">`;
+}
+
+function renderMedia(media){
+  if(!Array.isArray(media)||!media.length)return '';
+
+  if(media.length>1){
+    return `<div class="preview-grid">${media.map(m=>mediaHTML(m)).join('')}</div>`;
+  }
+
+  return media.map(m=>mediaHTML(m)).join('');
+}
+
+function findCommentById(comments,id){
+  for(const comment of comments||[]){
+    if(String(comment.id)===String(id))return comment;
+
+    const found=findCommentById(comment.children,id);
+    if(found)return found;
+  }
+
+  return null;
+}
+
+/* ===== Débat vocal : durée, résultat, camp, notifications, débat du jour ===== */
+function debateEndsAt(){
+  const select=document.getElementById('debateDuration');
+  const hours=select?Number(select.value)||0:0;
+  return hours?Date.now()+hours*3600000:null;
+}
+
+function isDebateClosed(poll){
+  return !!(poll&&poll.endsAt&&Date.now()>=Number(poll.endsAt));
+}
+
+function debateTimeLabel(poll){
+  if(!poll||!poll.endsAt)return 'Illimité';
+  const left=Number(poll.endsAt)-Date.now();
+  if(left<=0)return 'Terminé';
+  const minutes=Math.ceil(left/60000);
+  if(minutes<60)return 'Se termine dans '+minutes+' min';
+  const hours=Math.ceil(minutes/60);
+  if(hours<48)return 'Se termine dans '+hours+' h';
+  return 'Se termine dans '+Math.ceil(hours/24)+' j';
+}
+
+function debatePercents(poll){
+  const votes=(poll&&poll.votes)||[];
+  const a=Number(votes[0]||0),b=Number(votes[1]||0);
+  const total=a+b;
+  const pa=total?Math.round(a/total*100):0;
+  return {a:a,b:b,total:total,pa:pa,pb:total?100-pa:0};
+}
+
+function avisCamp(post){
+  if(post&&post.poll&&post.poll.voted&&Number.isInteger(post.poll.votedIndex))return post.poll.votedIndex;
+  return null;
+}
+
+function canGiveAvis(post){
+  if(!post||!post.poll)return true;
+  if(isDebateClosed(post.poll)){
+    alert('Ce débat est terminé : on ne peut plus donner d’avis.');
+    return false;
+  }
+  if(!post.poll.voted){
+    alert('Vote d’abord pour un camp, puis donne ton avis.');
+    return false;
+  }
+  return true;
+}
+
+function noteDebateActivity(post){
+  if(!post||!post.poll)return;
+  const events=Array.isArray(post.poll.events)?post.poll.events:[];
+  events.push(Date.now());
+  post.poll.events=events.slice(-200);
+}
+
+function campTagHTML(post,comment){
+  if(!post||!post.poll||!comment||!Number.isInteger(comment.camp))return '';
+  const name=(post.poll.options||[])[comment.camp];
+  if(!name)return '';
+  return '<span class="camp-tag camp-'+(comment.camp===0?'a':'b')+'">'+esc(name)+'</span>';
+}
+
+function renderDebatePanel(post){
+  const poll=post.poll;
+  const closed=isDebateClosed(poll);
+  const stats=debatePercents(poll);
+  const options=poll.options||[];
+  const showResult=!!poll.voted||closed;
+  const votedIdx=Number.isInteger(poll.votedIndex)?poll.votedIndex:null;
+  const legacy=!!poll.voted&&votedIdx===null;
+  const canChange=!!poll.voted&&!closed&&!legacy;
+  const label=function(i){return esc(options[i]||(i===0?'POUR':'CONTRE'));};
+  const buttons=[0,1].map(function(i){
+    const count=i===0?stats.a:stats.b;
+    const mine=!!poll.voted&&votedIdx===i;
+    let text;
+    if(!showResult){
+      text='Voter '+label(i);
+    }else if(mine){
+      text='✓ '+label(i)+' · '+count+' vote(s)';
+    }else if(canChange){
+      text='Passer à '+label(i)+' · '+count+' vote(s)';
+    }else{
+      text=label(i)+' · '+count+' vote(s)';
+    }
+    const disabled=closed||mine||legacy;
+    return '<button type="button" class="camp-'+(i===0?'a':'b')+(mine?' selected':'')+'" onclick="votePoll(\''+esc(post.id)+'\','+i+')"'
+      +(disabled?' disabled':'')+'>'+text+'</button>';
+  }).join('');
+  let voteNote='';
+  if(poll.voted){
+    if(legacy){
+      voteNote=' · Ton vote est enregistré sur cet appareil (non modifiable).';
+    }else if(closed){
+      voteNote=' · Ton vote : '+label(votedIdx)+'.';
+    }else{
+      voteNote=' · Ton vote : '+label(votedIdx)+' (tu peux le changer tant que le débat est ouvert).';
+    }
+  }
+  return '<div class="debate-panel">'
+    +'<div class="debate-top"><h3>🗳️ Débat</h3><span class="debate-time">'+esc(debateTimeLabel(poll))+'</span></div>'
+    +(showResult
+      ?'<div class="result-bar"><div class="res-a" style="width:'+stats.pa+'%"></div><div class="res-b" style="width:'+stats.pb+'%"></div></div>'
+       +'<div class="result-labels"><span class="lab-a">'+label(0)+' '+stats.pa+' %</span><span class="lab-b">'+label(1)+' '+stats.pb+' %</span></div>'
+      :'')
+    +'<div class="row">'+buttons+'</div>'
+    +'<p class="notice">'+stats.total+' voix · 1 vote par personne'+voteNote+(closed?' · Débat terminé.':'')+'</p>'
+    +(showResult?'<button type="button" class="full" onclick="shareDebateCard(\''+esc(post.id)+'\')">Partager la carte résultat</button>':'')
+    +'</div>';
+}
+
+function retagAvis(list,name,camp,changes){
+  if(!Array.isArray(list))return;
+  list.forEach(function(comment){
+    if(!comment)return;
+    if(isMine(comment)&&Number.isInteger(comment.camp)&&comment.camp!==camp){
+      changes.push({comment:comment,old:comment.camp});
+      comment.camp=camp;
+    }
+    retagAvis(comment.children,name,camp,changes);
+  });
+}
+
+/* ===== Carte résultat d'un débat (image à partager) ===== */
+function wrapCanvasText(ctx,text,maxWidth,maxLines){
+  const pieces=[];
+  String(text||'').split(/\s+/).filter(Boolean).forEach(function(word){
+    let rest=word;
+    while(rest.length>1&&ctx.measureText(rest).width>maxWidth){
+      let cut=rest.length-1;
+      while(cut>1&&ctx.measureText(rest.slice(0,cut)).width>maxWidth)cut--;
+      pieces.push(rest.slice(0,cut));
+      rest=rest.slice(cut);
+    }
+    pieces.push(rest);
+  });
+  const lines=[];
+  let line='';
+  pieces.forEach(function(word){
+    const test=line?line+' '+word:word;
+    if(!line||ctx.measureText(test).width<=maxWidth){
+      line=test;
+    }else{
+      lines.push(line);
+      line=word;
+    }
+  });
+  if(line)lines.push(line);
+  if(lines.length>maxLines){
+    const kept=lines.slice(0,maxLines);
+    let last=kept[maxLines-1];
+    while(last.length>1&&ctx.measureText(last+'…').width>maxWidth)last=last.slice(0,-1);
+    kept[maxLines-1]=last+'…';
+    return kept;
+  }
+  return lines;
+}
+
+function roundRectPath(ctx,x,y,w,h,r){
+  const radius=Math.min(r,w/2,h/2);
+  ctx.beginPath();
+  ctx.moveTo(x+radius,y);
+  ctx.arcTo(x+w,y,x+w,y+h,radius);
+  ctx.arcTo(x+w,y+h,x,y+h,radius);
+  ctx.arcTo(x,y+h,x,y,radius);
+  ctx.arcTo(x,y,x+w,y,radius);
+  ctx.closePath();
+}
+
+function buildDebateCard(post){
+  const poll=post.poll;
+  const stats=debatePercents(poll);
+  const options=poll.options||[];
+  const nameA=String(options[0]||'POUR');
+  const nameB=String(options[1]||'CONTRE');
+  const closed=isDebateClosed(poll);
+  const W=1080,H=1350;
+  const canvas=document.createElement('canvas');
+  canvas.width=W;
+  canvas.height=H;
+  const ctx=canvas.getContext('2d');
+  const font='system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif';
+
+  const bg=ctx.createLinearGradient(0,0,W,H);
+  bg.addColorStop(0,'#1a0b2e');
+  bg.addColorStop(1,'#0e0a1f');
+  ctx.fillStyle=bg;
+  ctx.fillRect(0,0,W,H);
+  const glow=ctx.createRadialGradient(W*0.2,0,40,W*0.2,0,760);
+  glow.addColorStop(0,'rgba(124,58,237,0.45)');
+  glow.addColorStop(1,'rgba(124,58,237,0)');
+  ctx.fillStyle=glow;
+  ctx.fillRect(0,0,W,H);
+
+  ctx.textAlign='left';
+  ctx.textBaseline='alphabetic';
+  ctx.fillStyle='#38bdf8';
+  ctx.font='bold 68px '+font;
+  ctx.fillText('JUNOVABOOK',70,125);
+
+  const status=closed?'RÉSULTAT FINAL':'RÉSULTAT ACTUEL';
+  ctx.font='bold 34px '+font;
+  const statusWidth=ctx.measureText(status).width+60;
+  roundRectPath(ctx,70,170,statusWidth,66,33);
+  ctx.fillStyle='#0ea5e9';
+  ctx.fill();
+  ctx.fillStyle='#ffffff';
+  ctx.fillText(status,100,215);
+
+  const question=String(post.text||'').trim()||'Débat sans titre';
+  ctx.fillStyle='#ffffff';
+  ctx.font='bold 70px '+font;
+  const lines=wrapCanvasText(ctx,question,W-140,6);
+  lines.forEach(function(line,i){ctx.fillText(line,70,360+i*88);});
+
+  const barX=70,barY=930,barW=W-140,barH=64;
+  roundRectPath(ctx,barX,barY,barW,barH,32);
+  ctx.fillStyle='#574471';
+  ctx.fill();
+  if(stats.total>0){
+    ctx.save();
+    roundRectPath(ctx,barX,barY,barW,barH,32);
+    ctx.clip();
+    ctx.fillStyle='#16815f';
+    ctx.fillRect(barX,barY,barW*stats.pa/100,barH);
+    ctx.fillStyle='#ec4899';
+    ctx.fillRect(barX+barW*stats.pa/100,barY,barW*stats.pb/100,barH);
+    ctx.restore();
+  }
+
+  ctx.font='bold 130px '+font;
+  ctx.textAlign='left';
+  ctx.fillStyle='#4ade80';
+  ctx.fillText(stats.pa+' %',70,1140);
+  ctx.textAlign='right';
+  ctx.fillStyle='#f472b6';
+  ctx.fillText(stats.pb+' %',W-70,1140);
+
+  ctx.font='bold 46px '+font;
+  ctx.textAlign='left';
+  ctx.fillStyle='#4ade80';
+  ctx.fillText(wrapCanvasText(ctx,nameA,440,1)[0]||'',70,1205);
+  ctx.textAlign='right';
+  ctx.fillStyle='#f472b6';
+  ctx.fillText(wrapCanvasText(ctx,nameB,440,1)[0]||'',W-70,1205);
+
+  ctx.textAlign='left';
+  ctx.font='36px '+font;
+  ctx.fillStyle='#c9bde5';
+  ctx.fillText(stats.total+' voix · 1 vote par personne',70,1275);
+
+  ctx.textAlign='right';
+  ctx.font='32px '+font;
+  ctx.fillStyle='#8f84ab';
+  let address='JUNOVABOOK';
+  try{
+    if(location&&location.protocol.indexOf('http')===0)address=location.host+location.pathname.replace(/index\.html$/,'');
+  }catch(e){}
+  ctx.fillText(address,W-70,1275);
+
+  return canvas;
+}
+
+async function shareDebateCard(id){
+  const post=posts.find(function(p){return String(p.id)===String(id);});
+  if(!post||!post.poll)return;
+  try{
+    const canvas=buildDebateCard(post);
+    const blob=await new Promise(function(resolve){canvas.toBlob(resolve,'image/png');});
+    if(!blob)throw new Error('image');
+    const file=new File([blob],'junovabook-debat.png',{type:'image/png'});
+    if(navigator.canShare&&navigator.share&&navigator.canShare({files:[file]})){
+      try{
+        await navigator.share({files:[file],title:'Débat JUNOVABOOK',text:'Résultat du débat sur JUNOVABOOK'});
+        return;
+      }catch(e){
+        if(e&&e.name==='AbortError')return;
+      }
+    }
+    const url=URL.createObjectURL(blob);
+    const link=document.createElement('a');
+    link.href=url;
+    link.download='junovabook-debat.png';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(function(){URL.revokeObjectURL(url);},10000);
+    alert('La carte résultat a été enregistrée comme image sur ton appareil.');
+  }catch(e){
+    alert('Impossible de créer la carte résultat.');
+  }
+}
+
+function pickDailyDebate(){
+  const dayAgo=Date.now()-86400000;
+  let best=null,bestScore=-1,bestDate=0;
+  posts.forEach(function(post){
+    if(!post||!post.poll||isDebateClosed(post.poll))return;
+    const events=Array.isArray(post.poll.events)?post.poll.events:[];
+    const score=events.filter(function(t){return t>=dayAgo;}).length;
+    const created=Date.parse(post.date)||0;
+    if(score>bestScore||(score===bestScore&&created>bestDate)){
+      best=post;bestScore=score;bestDate=created;
+    }
+  });
+  return best;
+}
+
+function goToPost(id){
+  const el=document.getElementById('post-'+id);
+  if(el)el.scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+function renderDailyDebate(){
+  const box=document.getElementById('dailyDebate');
+  if(!box)return;
+  const post=pickDailyDebate();
+  if(!post){
+    box.classList.add('hidden');
+    box.innerHTML='';
+    return;
+  }
+  const poll=post.poll;
+  const stats=debatePercents(poll);
+  const options=poll.options||[];
+  const text=String(post.text||'').trim();
+  const question=text.length>140?text.slice(0,140)+'…':(text||'Débat sans titre');
+  const label=function(i){return esc(options[i]||(i===0?'POUR':'CONTRE'));};
+  box.classList.remove('hidden');
+  box.innerHTML='<div class="panel daily-debate">'
+    +'<div class="debate-top"><span class="pill">🗣️ DÉBAT DU JOUR</span><span class="debate-time">'+esc(debateTimeLabel(poll))+'</span></div>'
+    +'<p class="daily-question">'+esc(question)+'</p>'
+    +(poll.voted
+      ?'<div class="result-bar"><div class="res-a" style="width:'+stats.pa+'%"></div><div class="res-b" style="width:'+stats.pb+'%"></div></div>'
+       +'<div class="result-labels"><span class="lab-a">'+label(0)+' '+stats.pa+' %</span><span class="lab-b">'+label(1)+' '+stats.pb+' %</span></div>'
+      :'')
+    +'<p class="notice">'+stats.total+' voix</p>'
+    +'<button type="button" class="full" onclick="goToPost(\''+esc(post.id)+'\')">Voir le débat</button>'
+    +'</div>';
+}
+
+function postTitle(post){
+  const text=String((post&&post.text)||'').trim().replace(/\s+/g,' ');
+  if(!text)return 'sans titre';
+  return text.length>40?text.slice(0,40)+'…':text;
+}
+
+function notifyDebateOwner(post,verb){
+  if(!post)return;
+  const actor=profileName();
+  if(isMine(post))return;
+  const key='post-'+post.id;
+  const now=Date.now();
+  const kind=post.poll?'ton débat':'ta publication';
+  const title=postTitle(post);
+  const existing=activities.find(function(a){return a.groupKey===key&&now-Number(a.groupAt||0)<3600000;});
+  if(existing){
+    const actors=Array.isArray(existing.actors)?existing.actors.slice():[];
+    if(actors.indexOf(actor)===-1)actors.push(actor);
+    const others=actors.length-1;
+    existing.actors=actors;
+    existing.groupAt=now;
+    existing.name=actor;
+    existing.read=false;
+    existing.time=new Date().toLocaleString();
+    existing.text=others>0
+      ?'et '+others+' autre'+(others>1?'s':'')+' personne'+(others>1?'s ont':' a')+' débattu sur '+kind+' « '+title+' ».'
+      :verb+' sur '+kind+' « '+title+' ».';
+    saveJSON(ACTIVITY_STORE,activities);
+    renderActivities();
+    return;
+  }
+  addActivity(verb+' sur '+kind+' « '+title+' ».');
+  const item=activities[0];
+  if(item){
+    item.groupKey=key;
+    item.groupAt=now;
+    item.actors=[actor];
+    saveJSON(ACTIVITY_STORE,activities);
+  }
+}
+
+function autoStopAudioAvis(){
+  if(commentRecorder&&commentRecorder.state==='recording'&&(Date.now()-commentStart)/1000>=60){
+    commentRecorder.stop();
+  }
+}
+
+/* ===== Identité : identifiant unique, limites de changement, lien de profil, contacts ===== */
+function userIdKey(){return 'junovabook_user_id';}
+
+function randomId(){
+  const chars='abcdefghijkmnpqrstuvwxyz23456789';
+  const bytes=new Uint8Array(12);
+  if(window.crypto&&window.crypto.getRandomValues){
+    window.crypto.getRandomValues(bytes);
+  }else{
+    for(let i=0;i<bytes.length;i++)bytes[i]=Math.floor(Math.random()*256);
+  }
+  let out='';
+  for(let i=0;i<bytes.length;i++)out+=chars.charAt(bytes[i]%chars.length);
+  return out;
+}
+
+function myUserId(){
+  let id=localStorage.getItem(userIdKey());
+  if(!id||!/^[a-z0-9]{8,32}$/.test(id)){
+    id=randomId();
+    try{localStorage.setItem(userIdKey(),id);}catch(e){}
+  }
+  return id;
+}
+
+function nameHistoryKey(){return 'junovabook_name_history';}
+
+function loadNameHistory(){
+  try{
+    const value=JSON.parse(localStorage.getItem(nameHistoryKey())||'[]');
+    return Array.isArray(value)?value.filter(function(x){return typeof x==='string';}):[];
+  }catch(e){
+    return [];
+  }
+}
+
+function myNames(){
+  return [profileName()].concat(loadNameHistory());
+}
+
+function isMine(item){
+  if(!item)return false;
+  if(item.authorId)return item.authorId===myUserId();
+  return myNames().indexOf(String(item.name||'Membre JUNOVABOOK'))!==-1;
+}
+
+function displayName(item){
+  return isMine(item)?profileName():String((item&&item.name)||'Membre JUNOVABOOK');
+}
+
+function changeKey(kind){return 'junovabook_'+kind+'_changed_at';}
+
+function remainingMs(kind,days){
+  const last=Number(localStorage.getItem(changeKey(kind)))||0;
+  if(!last)return 0;
+  return Math.max(0,last+days*86400000-Date.now());
+}
+
+function remainingText(ms){
+  const days=Math.max(1,Math.ceil(ms/86400000));
+  return days>1?days+' jours':'1 jour';
+}
+
+function markChange(kind){
+  try{localStorage.setItem(changeKey(kind),String(Date.now()));}catch(e){}
+}
+
+function renderLimitNotes(){
+  const nameNote=document.getElementById('nameLimitNote');
+  if(nameNote){
+    const wait=remainingMs('name',20);
+    nameNote.textContent=wait>0?'Tu pourras changer ton nom dans '+remainingText(wait)+'.':'Tu peux changer ton nom tous les 20 jours.';
+  }
+  const photoNote=document.getElementById('photoLimitNote');
+  if(photoNote){
+    const wait=remainingMs('photo',7);
+    photoNote.textContent=wait>0?'Tu pourras changer ta photo dans '+remainingText(wait)+'.':'Tu peux changer ta photo tous les 7 jours.';
+  }
+}
+
+/* ----- Photo de profil, liée à l'identifiant ----- */
+function migrateAvatars(){
+  const photos=loadAvatars();
+  const id=myUserId();
+  const name=profileName();
+  if(!photos[id]&&typeof photos[name]==='string'){
+    photos[id]=photos[name];
+    delete photos[name];
+    try{localStorage.setItem(avatarStoreKey(),JSON.stringify(photos));}catch(e){}
+  }
+}
+
+function avatarFor(userId){
+  const photo=loadAvatars()[String(userId||'')];
+  return typeof photo==='string'&&photo.indexOf('data:image/')===0?photo:'';
+}
+
+function avatarHTML(name,authorId){
+  const label=String(name||'Membre JUNOVABOOK');
+  const mine=authorId?authorId===myUserId():myNames().indexOf(label)!==-1;
+  const photo=mine?avatarFor(myUserId()):'';
+  if(photo)return '<span class="avatar"><img src="'+esc(photo)+'" alt=""></span>';
+  const letter=(label.trim().charAt(0)||'M').toUpperCase();
+  return '<span class="avatar">'+esc(letter)+'</span>';
+}
+
+function renderProfilePhoto(){
+  const box=document.getElementById('profilePhotoPreview');
+  if(box)box.innerHTML=avatarHTML(profileName(),myUserId());
+}
+
+async function chooseProfilePhoto(input){
+  const file=input.files&&input.files[0];
+  if(!file)return;
+  const photos=loadAvatars();
+  const id=myUserId();
+  const hadPhoto=!!photos[id];
+  if(hadPhoto){
+    const wait=remainingMs('photo',7);
+    if(wait>0){
+      alert('Tu pourras changer ta photo dans '+remainingText(wait)+'.');
+      input.value='';
+      return;
+    }
+  }
+  if(!file.type.startsWith('image/')){
+    alert('Choisis une image.');
+    input.value='';
+    return;
+  }
+  if(file.size>10*1024*1024){
+    alert('Cette photo dépasse 10 Mo. Choisis-en une plus légère.');
+    input.value='';
+    return;
+  }
+  try{
+    const dataUrl=await squareThumbnail(file,96);
+    photos[id]=dataUrl;
+    localStorage.setItem(avatarStoreKey(),JSON.stringify(photos));
+    if(hadPhoto)markChange('photo');
+    renderProfilePhoto();
+    renderLimitNotes();
+    renderFeed();
+    addActivity('Ta photo de profil a été enregistrée.');
+    alert('Photo enregistrée sur cet appareil.');
+  }catch(e){
+    alert('Impossible de lire cette photo. Essaie une autre image.');
+  }
+  input.value='';
+}
+
+function removeProfilePhoto(){
+  const photos=loadAvatars();
+  const id=myUserId();
+  if(!photos[id])return;
+  const wait=remainingMs('photo',7);
+  if(wait>0){
+    alert('Tu pourras changer ta photo dans '+remainingText(wait)+'.');
+    return;
+  }
+  delete photos[id];
+  try{localStorage.setItem(avatarStoreKey(),JSON.stringify(photos));}catch(e){}
+  markChange('photo');
+  renderProfilePhoto();
+  renderLimitNotes();
+  renderFeed();
+  renderActivities();
+}
+
+/* ----- Lien de profil ----- */
+function profileLinkFor(){
+  let base='';
+  try{
+    if(location.protocol==='https:'||location.protocol==='http:')base=location.href.split(/[?#]/)[0];
+  }catch(e){}
+  if(!base)return '';
+  return base+'?u='+encodeURIComponent(myUserId())+'&n='+encodeURIComponent(profileName());
+}
+
+function profileLinkUnavailable(){
+  alert('Le lien de profil est disponible seulement sur ton site publié, pas dans un aperçu.');
+}
+
+function renderProfileLink(){
+  const input=document.getElementById('profileLink');
+  if(input)input.value=profileLinkFor()||'Disponible sur ton site publié (pas dans un aperçu)';
+}
+
+function copyProfileLink(){
+  const link=profileLinkFor();
+  if(!link){profileLinkUnavailable();return;}
+  const fallback=function(){
+    const input=document.getElementById('profileLink');
+    try{
+      input.focus();
+      input.select();
+      if(document.execCommand('copy')){alert('Lien copié.');return;}
+    }catch(e){}
+    prompt('Copie ce lien :',link);
+  };
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(link).then(function(){alert('Lien copié.');},fallback);
+  }else{
+    fallback();
+  }
+}
+
+async function shareProfileLink(){
+  const link=profileLinkFor();
+  if(!link){profileLinkUnavailable();return;}
+  if(navigator.share){
+    try{
+      await navigator.share({title:'Mon profil JUNOVABOOK',text:profileName()+' sur JUNOVABOOK',url:link});
+      return;
+    }catch(e){
+      if(e&&e.name==='AbortError')return;
+    }
+  }
+  copyProfileLink();
+}
+
+function cleanContactName(raw){
+  return String(raw||'').replace(/[\u0000-\u001f\u007f]/g,'').trim().slice(0,60);
+}
+
+function parseProfileLink(search){
+  let params;
+  try{params=new URLSearchParams(search||'');}catch(e){return null;}
+  const id=params.get('u');
+  if(!id||!/^[a-z0-9]{8,32}$/.test(id))return null;
+  return {id:id,name:cleanContactName(params.get('n'))||'Membre JUNOVABOOK'};
+}
+
+/* ----- Contacts ----- */
+function contactsKey(){return 'junovabook_contacts';}
+
+function loadContacts(){
+  try{
+    const value=JSON.parse(localStorage.getItem(contactsKey())||'{}');
+    return value&&typeof value==='object'&&!Array.isArray(value)?value:{};
+  }catch(e){
+    return {};
+  }
+}
+
+function addContact(id,name){
+  const contacts=loadContacts();
+  contacts[id]={name:cleanContactName(name)||'Membre JUNOVABOOK',addedAt:Date.now()};
+  try{localStorage.setItem(contactsKey(),JSON.stringify(contacts));}catch(e){
+    alert('Impossible d’enregistrer ce contact.');
+    return;
+  }
+  renderContacts();
+  addActivity(contacts[id].name+' a été ajouté à tes contacts.');
+}
+
+function removeContact(id){
+  const contacts=loadContacts();
+  delete contacts[id];
+  try{localStorage.setItem(contactsKey(),JSON.stringify(contacts));}catch(e){}
+  renderContacts();
+}
+
+function renderContacts(){
+  const box=document.getElementById('contactList');
+  if(!box)return;
+  const contacts=loadContacts();
+  const ids=Object.keys(contacts).filter(function(id){return /^[a-z0-9]{8,32}$/.test(id);});
+  if(!ids.length){
+    box.innerHTML='<p class="empty">Aucun contact pour le moment.</p>';
+    return;
+  }
+  box.innerHTML=ids.map(function(id){
+    const name=cleanContactName(contacts[id]&&contacts[id].name)||'Membre JUNOVABOOK';
+    return '<div class="contact-row">'+avatarHTML(name,id)+'<strong>'+esc(name)+'</strong>'
+      +'<button type="button" onclick="removeContact(\''+id+'\')">Retirer</button></div>';
+  }).join('');
+}
+
+function showProfileLinkCard(id,name){
+  const old=document.getElementById('profileLinkCard');
+  if(old)old.remove();
+  const known=!!loadContacts()[id];
+  const card=document.createElement('div');
+  card.id='profileLinkCard';
+  card.className='link-card';
+  card.innerHTML='<div class="link-card-box"><h3>Profil JUNOVABOOK</h3>'
+    +'<div class="link-card-who">'+avatarHTML(name,id)+'<strong>'+esc(name)+'</strong></div>'
+    +'<p class="notice">Nom indiqué dans le lien, non vérifié.</p>'
+    +(known?'<p class="notice">Déjà dans tes contacts.</p>':'')
+    +'<div class="row"><button type="button" id="linkCardAdd"'+(known?' disabled':'')+'>Ajouter à mes contacts</button>'
+    +'<button type="button" id="linkCardClose">Fermer</button></div></div>';
+  document.body.appendChild(card);
+  document.getElementById('linkCardClose').onclick=function(){card.remove();};
+  document.getElementById('linkCardAdd').onclick=function(){addContact(id,name);card.remove();};
+}
+
+function handleProfileLink(){
+  const parsed=parseProfileLink(location.search);
+  if(!location.search||!/[?&]u=/.test(location.search))return;
+  try{history.replaceState(null,'',location.href.split(/[?#]/)[0]);}catch(e){}
+  if(!parsed)return;
+  if(parsed.id===myUserId()){
+    alert('C’est ton propre lien de profil.');
+    return;
+  }
+  showProfileLinkCard(parsed.id,parsed.name);
+}
+
+/* ===== Photo de profil (enregistrée sur cet appareil, par nom affiché) ===== */
+function avatarStoreKey(){return 'junovabook_avatars';}
+
+function loadAvatars(){
+  try{
+    const value=JSON.parse(localStorage.getItem(avatarStoreKey())||'{}');
+    return value&&typeof value==='object'?value:{};
+  }catch(e){
+    return {};
+  }
+}
+
+
+
+
+function loadImageElement(file){
+  return new Promise(function(resolve,reject){
+    const url=URL.createObjectURL(file);
+    const img=new Image();
+    img.onload=function(){URL.revokeObjectURL(url);resolve(img);};
+    img.onerror=function(){URL.revokeObjectURL(url);reject(new Error('image'));};
+    img.src=url;
+  });
+}
+
+async function squareThumbnail(file,size){
+  const img=await loadImageElement(file);
+  const side=Math.min(img.naturalWidth,img.naturalHeight);
+  const sx=(img.naturalWidth-side)/2;
+  const sy=(img.naturalHeight-side)/2;
+  const canvas=document.createElement('canvas');
+  canvas.width=size;
+  canvas.height=size;
+  const ctx=canvas.getContext('2d');
+  ctx.fillStyle='#ffffff';
+  ctx.fillRect(0,0,size,size);
+  ctx.drawImage(img,sx,sy,side,side,0,0,size,size);
+  return canvas.toDataURL('image/jpeg',0.82);
+}
+
+/* ===== Réduction automatique des photos de plus de 2,5 Mo ===== */
+async function shrinkImageFile(file,limit){
+  const img=await loadImageElement(file);
+  let scale=Math.min(1,2048/Math.max(img.naturalWidth,img.naturalHeight));
+  let quality=0.85;
+  for(let attempt=0;attempt<14;attempt++){
+    const w=Math.max(1,Math.round(img.naturalWidth*scale));
+    const h=Math.max(1,Math.round(img.naturalHeight*scale));
+    const canvas=document.createElement('canvas');
+    canvas.width=w;
+    canvas.height=h;
+    const ctx=canvas.getContext('2d');
+    ctx.fillStyle='#ffffff';
+    ctx.fillRect(0,0,w,h);
+    ctx.drawImage(img,0,0,w,h);
+    const blob=await new Promise(function(resolve){canvas.toBlob(resolve,'image/jpeg',quality);});
+    if(blob&&blob.size<=limit){
+      const base=(file.name||'photo').replace(/\.[^.]+$/,'');
+      return new File([blob],base+'.jpg',{type:'image/jpeg'});
+    }
+    if(quality>0.6){quality-=0.1;}else{scale*=0.8;}
+  }
+  throw new Error('trop lourd');
+}
+
+/* ===== Audio importé de 2,5 à 5 Mo : choix de l'extrait à garder ===== */
+var voiceTrimState=null;
+
+function fmtDuration(seconds){
+  const total=Math.max(0,Math.round(seconds));
+  const m=Math.floor(total/60),r=total%60;
+  return m+':'+(r<10?'0':'')+r;
+}
+
+function wavBlobFromSamples(samples,rate){
+  const buffer=new ArrayBuffer(44+samples.length*2);
+  const view=new DataView(buffer);
+  function writeText(offset,text){
+    for(let i=0;i<text.length;i++)view.setUint8(offset+i,text.charCodeAt(i));
+  }
+  writeText(0,'RIFF');
+  view.setUint32(4,36+samples.length*2,true);
+  writeText(8,'WAVE');
+  writeText(12,'fmt ');
+  view.setUint32(16,16,true);
+  view.setUint16(20,1,true);
+  view.setUint16(22,1,true);
+  view.setUint32(24,rate,true);
+  view.setUint32(28,rate*2,true);
+  view.setUint16(32,2,true);
+  view.setUint16(34,16,true);
+  writeText(36,'data');
+  view.setUint32(40,samples.length*2,true);
+  let offset=44;
+  for(let i=0;i<samples.length;i++){
+    const v=Math.max(-1,Math.min(1,samples[i]));
+    view.setInt16(offset,v<0?v*0x8000:v*0x7FFF,true);
+    offset+=2;
+  }
+  return new Blob([buffer],{type:'audio/wav'});
+}
+
+async function decodeToMono(file){
+  const Ctx=window.OfflineAudioContext||window.webkitOfflineAudioContext;
+  if(!Ctx)throw new Error('non supporté');
+  const context=new Ctx(1,1,16000);
+  const decoded=await context.decodeAudioData(await file.arrayBuffer());
+  const length=decoded.length;
+  const channels=decoded.numberOfChannels;
+  const mono=new Float32Array(length);
+  for(let c=0;c<channels;c++){
+    const data=decoded.getChannelData(c);
+    for(let i=0;i<length;i++)mono[i]+=data[i]/channels;
+  }
+  return {samples:mono,rate:decoded.sampleRate};
+}
+
+function hideVoiceTrim(){
+  voiceTrimState=null;
+  const box=document.getElementById('voiceTrimBox');
+  if(box)box.classList.add('hidden');
+}
+
+function updateVoiceTrimLabel(){
+  const s=voiceTrimState;
+  if(!s||!s.keep)return;
+  const start=Number(document.getElementById('voiceTrimStart').value)||0;
+  const end=Math.min(s.total,start+s.keep);
+  document.getElementById('voiceTrimLabel').textContent='Extrait gardé : de '+fmtDuration(start)+' à '+fmtDuration(end);
+}
+
+async function startVoiceTrim(file,input){
+  hideVoiceTrim();
+  if(file.size>5*1024*1024){
+    alert('Ce fichier audio dépasse 5 Mo. Choisis un fichier plus léger.');
+    input.value='';
+    return;
+  }
+  const box=document.getElementById('voiceTrimBox');
+  const status=document.getElementById('voiceTrimStatus');
+  const controls=document.getElementById('voiceTrimControls');
+  box.classList.remove('hidden');
+  controls.classList.add('hidden');
+  status.textContent='Préparation de l’audio…';
+  try{
+    const decoded=await decodeToMono(file);
+    const maxSamples=Math.floor((2500000-44)/2);
+    voiceTrimState={samples:decoded.samples,rate:decoded.rate,maxSamples:maxSamples,input:input,keep:0,total:decoded.samples.length/decoded.rate};
+    if(decoded.samples.length<=maxSamples){
+      applyVoiceTrim(true);
+      return;
+    }
+    const keep=Math.floor(maxSamples/decoded.rate);
+    voiceTrimState.keep=keep;
+    const range=document.getElementById('voiceTrimStart');
+    range.min=0;
+    range.max=Math.max(0,Math.floor(voiceTrimState.total-keep));
+    range.step=1;
+    range.value=0;
+    status.textContent='Ton audio dure '+fmtDuration(voiceTrimState.total)+'. Choisis la partie à garder ('+keep+' secondes au maximum).';
+    controls.classList.remove('hidden');
+    updateVoiceTrimLabel();
+  }catch(e){
+    box.classList.add('hidden');
+    input.value='';
+    alert('Impossible de lire ou de couper ce fichier audio. Essaie un autre fichier.');
+  }
+}
+
+function validateVoiceTrim(){
+  applyVoiceTrim(false);
+}
+
+function applyVoiceTrim(whole){
+  const s=voiceTrimState;
+  if(!s)return;
+  const from=whole?0:Math.floor((Number(document.getElementById('voiceTrimStart').value)||0)*s.rate);
+  const to=whole?s.samples.length:Math.min(s.samples.length,from+s.maxSamples);
+  const slice=s.samples.subarray(from,to);
+  const trimmed=new File([wavBlobFromSamples(slice,s.rate)],'voix-junova.wav',{type:'audio/wav'});
+  const transfer=new DataTransfer();
+  transfer.items.add(trimmed);
+  s.input.files=transfer.files;
+  voiceBlob=trimmed;
+  showVoicePreview(trimmed);
+  document.getElementById('publishVoiceBtn').disabled=false;
+  document.getElementById('voiceTrimControls').classList.add('hidden');
+  document.getElementById('voiceTrimStatus').textContent=whole
+    ?'Audio converti pour tenir dans 2,5 Mo ('+fmtDuration(slice.length/s.rate)+').'
+    :'Extrait prêt : '+fmtDuration(slice.length/s.rate)+' gardées (de '+fmtDuration(from/s.rate)+' à '+fmtDuration(to/s.rate)+').';
+  voiceTrimState=null;
+}
+
+/* ===== Compteur JUNOVAS (notifications non lues) ===== */
+function updateJunovasCounter(){
+  const list=Array.isArray(activities)?activities:[];
+  const unread=list.filter(function(a){return !a.read;}).length;
+  const button=document.querySelector('.bottom button[onclick*="junovas"]');
+  if(!button)return;
+  let badge=button.querySelector('.count-badge');
+  if(!badge){
+    badge=document.createElement('span');
+    badge.className='count-badge';
+    button.appendChild(badge);
+  }
+  badge.textContent=unread>99?'99+':String(unread);
+  badge.hidden=unread===0;
+}
+
+/* ===== Lecteur audio maison (affichage seulement) ===== */
+(function(){
+  const PLAY='<polygon points="5,1 22,12 5,23" fill="#fbbf24"></polygon>';
+  const PAUSE='<rect x="4" y="2" width="6" height="20" rx="1.5" fill="#fbbf24"></rect><rect x="14" y="2" width="6" height="20" rx="1.5" fill="#fbbf24"></rect>';
+
+  function fmt(seconds){
+    if(!isFinite(seconds)||seconds<0)seconds=0;
+    const m=Math.floor(seconds/60),r=Math.floor(seconds%60);
+    return m+':'+(r<10?'0':'')+r;
+  }
+
+  function draw(box){
+    const audio=box.querySelector('audio');
+    if(!audio)return;
+    const duration=isFinite(audio.duration)&&audio.duration>0?audio.duration:0;
+    const ratio=duration?Math.min(1,audio.currentTime/duration):0;
+    box.querySelector('.jb-fill').style.width=(ratio*100)+'%';
+    box.querySelector('.jb-dot').style.left=(ratio*100)+'%';
+    box.querySelector('.jb-time').textContent=fmt(audio.currentTime);
+    box.querySelector('.jb-ico').innerHTML=audio.paused?PLAY:PAUSE;
+  }
+
+  function boxOf(target){
+    return target&&target.closest?target.closest('.jb-audio'):null;
+  }
+
+  function seekFromX(box,clientX){
+    const audio=box.querySelector('audio');
+    const rect=box.querySelector('.jb-track').getBoundingClientRect();
+    if(!audio||!rect.width)return;
+    const duration=audio.duration;
+    if(!isFinite(duration)||duration<=0)return;
+    const ratio=Math.max(0,Math.min(1,(clientX-rect.left)/rect.width));
+    audio.currentTime=ratio*duration;
+    draw(box);
+  }
+
+  document.addEventListener('click',function(event){
+    const button=event.target.closest?event.target.closest('.jb-play'):null;
+    if(button){
+      const audio=button.closest('.jb-audio').querySelector('audio');
+      if(audio.paused){
+        const result=audio.play();
+        if(result&&result.catch)result.catch(function(){});
+      }else{
+        audio.pause();
+      }
+      return;
+    }
+    const track=event.target.closest?event.target.closest('.jb-track'):null;
+    if(track){
+      seekFromX(track.closest('.jb-audio'),event.clientX);
+    }
+  });
+
+  document.addEventListener('keydown',function(event){
+    const track=event.target.closest?event.target.closest('.jb-track'):null;
+    if(!track||(event.key!=='ArrowLeft'&&event.key!=='ArrowRight'))return;
+    const box=track.closest('.jb-audio');
+    const audio=box.querySelector('audio');
+    audio.currentTime=Math.max(0,audio.currentTime+(event.key==='ArrowRight'?5:-5));
+    draw(box);
+    event.preventDefault();
+  });
+
+  ['timeupdate','pause','durationchange','seeked'].forEach(function(name){
+    document.addEventListener(name,function(event){
+      const box=boxOf(event.target);
+      if(box)draw(box);
+    },true);
+  });
+
+  document.addEventListener('play',function(event){
+    const box=boxOf(event.target);
+    if(!box)return;
+    document.querySelectorAll('audio').forEach(function(other){
+      if(other!==event.target&&!other.paused)other.pause();
+    });
+    draw(box);
+  },true);
+
+  document.addEventListener('ended',function(event){
+    const box=boxOf(event.target);
+    if(!box)return;
+    event.target.currentTime=0;
+    draw(box);
+  },true);
+
+  document.addEventListener('loadedmetadata',function(event){
+    const box=boxOf(event.target);
+    if(!box)return;
+    const audio=event.target;
+    if(audio.duration===Infinity&&!audio._durationFixed){
+      audio._durationFixed=true;
+      try{
+        audio.currentTime=1e101;
+        audio.addEventListener('timeupdate',function fix(){
+          audio.removeEventListener('timeupdate',fix);
+          audio.currentTime=0;
+          draw(box);
+        });
+      }catch(error){}
+    }
+    draw(box);
+  },true);
+})();
+
+function shortDate(value){
+  const text=String(value||'');
+  const m=text.match(/^(\d{1,2})\/(\d{1,2})\/\d{2,4}[,\s]+(\d{1,2}:\d{2})/);
+  return m?`${m[1]}/${m[2]} · ${m[3]}`:text;
+}
+
+function countAllReplies(list){
+  if(!Array.isArray(list))return 0;
+  return list.reduce((total,c)=>total+1+countAllReplies(c&&c.children),0);
+}
+
+function commentNode(post,comment,depth=0){
+  const children=Array.isArray(comment.children)?comment.children:[];
+  const media=Array.isArray(comment.media)?comment.media:[];
+  const isReply=depth>0;
+  const hasAudio=media.some(m=>m.type==='audio');
+  const badge=isReply?'↳ RÉPONSE':'💬 COMMENTAIRE';
+  const audioBadge=hasAudio?' 🎙️ AUDIO':'';
+
+  return `
+    <div class="reply ${isReply?'is-reply':''}" id="comment-${esc(comment.id)}">
+      <span class="comment-badge">${badge}${audioBadge}</span>
+      <div class="comment-head">
+        <strong class="who">${avatarHTML(displayName(comment),comment.authorId)}${esc(displayName(comment))}</strong>${campTagHTML(post,comment)}
+        <small>${esc(shortDate(comment.date))}</small>
+      </div>
+
+      ${comment.text?`<p>${esc(comment.text)}</p>`:''}
+      ${media.map(m=>mediaHTML(m)).join('')}
+
+      <div class="row">
+        <button type="button" onclick="replyToComment('${esc(post.id)}','${esc(comment.id)}')">↩ Répondre</button>
+        <button type="button" class="blue" onclick="startAudioReply('${esc(post.id)}','${esc(comment.id)}')">🎙️ Réponse audio</button>
+      </div>
+
+      <div id="audio-reply-status-${esc(comment.id)}"></div>
+
+      ${children.length?`
+        <div class="reply-children">
+          ${children.map(c=>commentNode(post,c,depth+1)).join('')}
+        </div>
+      `:''}
+    </div>
+  `;
+}
+
+function renderFeed(){
+  const feed=document.getElementById('feed');
+  if(!feed)return;
+
+  renderDailyDebate();
+  feed.innerHTML='';
+
+  if(!posts.length){
+    feed.innerHTML='<div class="panel empty">Aucune publication pour le moment.</div>';
+    return;
+  }
+
+  posts.forEach(post=>{
+    if(!Array.isArray(post.comments))post.comments=[];
+
+    const comments=post.comments;
+    const isSaved=saved.has(String(post.id));
+    const poll=post.poll;
+
+    const card=document.createElement('article');
+    card.className='post';
+    card.id='post-'+post.id;
+
+    card.innerHTML=`
+      <div class="row" style="align-items:center;justify-content:space-between">
+        <strong class="who">${avatarHTML(displayName(post),post.authorId)}${esc(displayName(post))}</strong>
+        <small>${esc(post.date?shortDate(new Date(post.date).toLocaleString()):'')}</small>
+      </div>
+
+      ${post.type==='debat'?'<span class="pill">🗣️ DÉBAT</span>':''}
+      ${post.type==='voice'?'<span class="pill">🎙️ MA VOIX<br>JUNOVA</span>':''}
+
+      ${post.text?`<p>${esc(post.text)}</p>`:''}
+      ${renderMedia(post.media)}
+
+      ${poll?renderDebatePanel(post):''}
+
+      <div class="actions">
+        <button type="button" style="background:var(--accent)"
+          onclick="lovePost('${esc(post.id)}')">❤️ ${Number(post.loves)||0} LOVES</button>
+
+        <button type="button" style="background:#245fbd"
+          onclick="toggleComments('${esc(post.id)}')">DÉBATS ${countAllReplies(comments)}</button>
+
+        <button type="button" style="background:#16815f"
+          onclick="sharePost('${esc(post.id)}')">DIFFUSIONS</button>
+      </div>
+
+      <div class="row">
+        <button type="button" onclick="toggleSaved('${esc(post.id)}')">
+          ${isSaved?'★ Retirer des favoris':'☆ Ajouter aux favoris'}
+        </button>
+
+        <button type="button" onclick="editPost('${esc(post.id)}')">✏️ Modifier</button>
+
+        <button type="button" class="danger" onclick="deletePost('${esc(post.id)}')">Supprimer</button>
+      </div>
+
+      <div id="debate-${esc(post.id)}" class="debate-panel hidden">
+        <h3>💬 Discussion</h3>
+
+        <label for="comment-text-${esc(post.id)}">Ton commentaire</label>
+        <textarea id="comment-text-${esc(post.id)}" maxlength="2000"
+          placeholder="Écris ton commentaire..."></textarea>
+
+        <div class="row">
+          <button type="button" class="blue" onclick="addComment('${esc(post.id)}')">Envoyer</button>
+          <button type="button" class="primary" onclick="openAudioComment('${esc(post.id)}')">🎙️ Commentaire audio</button>
+        </div>
+
+        <div id="audio-comment-status-${esc(post.id)}"></div>
+
+        <div class="comment-list">
+          ${comments.length?comments.map(c=>commentNode(post,c)).join(''):'<p class="empty">Aucun commentaire. Lance la discussion !</p>'}
+        </div>
+      </div>`;
+
+    feed.appendChild(card);
+  });
+  }function lovePost(id){
+  const post=posts.find(p=>String(p.id)===String(id));
+  if(!post)return;
+
+  if(!Array.isArray(post.lovedBy))post.lovedBy=[];
+
+  const me='junova_local_user';
+  const alreadyLoved=post.lovedBy.includes(me);
+
+  if(alreadyLoved){
+    post.lovedBy=post.lovedBy.filter(user=>user!==me);
+    post.loves=Math.max(0,(Number(post.loves)||0)-1);
+  }else{
+    post.lovedBy.push(me);
+    post.loves=(Number(post.loves)||0)+1;
+  }
+
+  if(!persistPosts()){
+    if(alreadyLoved){
+      post.lovedBy.push(me);
+      post.loves++;
+    }else{
+      post.lovedBy=post.lovedBy.filter(user=>user!==me);
+      post.loves=Math.max(0,post.loves-1);
+    }
+    return;
+  }
+
+  renderFeed();
+}
+
+function toggleComments(id){
+  const panel=document.getElementById('debate-'+id);
+  if(!panel)return;
+  panel.classList.toggle('hidden');
+}
+
+function addComment(id){
+  const post=posts.find(p=>String(p.id)===String(id));
+  const input=document.getElementById('comment-text-'+id);
+  if(!post||!input)return;
+
+  const text=input.value.trim();
+  if(!text){
+    alert('Écris un commentaire avant de l’envoyer.');
+    return;
+  }
+
+  if(!canGiveAvis(post))return;
+
+  post.comments=post.comments||[];
+  post.comments.push({
+    id:safeId(),
+    name:profileName(),authorId:myUserId(),
+    text,
+    media:[],
+    children:[],
+    camp:avisCamp(post),
+    date:new Date().toLocaleString()
+  });
+  noteDebateActivity(post);
+
+  if(!persistPosts()){
+    post.comments.pop();
+    return;
+  }
+
+  input.value='';
+  addActivity('Un nouveau commentaire a été publié.');
+  notifyDebateOwner(post,'a donné son avis');
+  renderFeed();
+
+  const panel=document.getElementById('debate-'+id);
+  if(panel)panel.classList.remove('hidden');
+}
+
+function replyToComment(postId,commentId){
+  const post=posts.find(p=>String(p.id)===String(postId));
+  if(!post)return;
+
+  const comment=findCommentById(post.comments,commentId);
+  if(!comment)return;
+
+  if(!canGiveAvis(post))return;
+
+  const text=prompt('Écris ta réponse à ce commentaire :');
+  if(text===null||!text.trim())return;
+
+  if(!Array.isArray(comment.children))comment.children=[];
+
+  comment.children.push({
+    id:safeId(),
+    name:profileName(),authorId:myUserId(),
+    text:text.trim(),
+    media:[],
+    children:[],
+    camp:avisCamp(post),
+    date:new Date().toLocaleString()
+  });
+  noteDebateActivity(post);
+
+  if(!persistPosts()){
+    comment.children.pop();
+    return;
+  }
+
+  addActivity('Une réponse à un commentaire a été publiée.');
+  notifyDebateOwner(post,'a répondu');
+  renderFeed();
+
+  const panel=document.getElementById('debate-'+postId);
+  if(panel)panel.classList.remove('hidden');
+}
+
+function releaseCommentRecording(){
+  clearInterval(commentTimerInterval);
+  commentTimerInterval=null;
+
+  if(commentStream){
+    commentStream.getTracks().forEach(track=>track.stop());
+    commentStream=null;
+  }
+}
+
+function stopCommentRecording(){
+  if(commentRecorder&&commentRecorder.state==='recording'){
+    commentRecorder.stop();
+  }else{
+    releaseCommentRecording();
+  }
+}
+
+async function openAudioComment(postId){
+  if(megas<1){
+    alert('Il te faut 1 MÉGA pour publier un commentaire audio.');
+    return;
+  }
+
+  const post=posts.find(p=>String(p.id)===String(postId));
+  if(!post)return;
+
+  if(!canGiveAvis(post))return;
+
+  const status=document.getElementById('audio-comment-status-'+postId);
+  if(!status)return;
+
+  if(!navigator.mediaDevices?.getUserMedia||!window.MediaRecorder){
+    alert('Ton navigateur ne permet pas cet enregistrement.');
+    return;
+  }
+
+  if(commentRecorder&&commentRecorder.state==='recording'){
+    alert('Arrête d’abord l’enregistrement audio déjà en cours.');
+    return;
+  }
+
+  status.innerHTML=`
+    <div class="recording-status">
+      <span class="recording-time" id="commentTimer">00:00</span>
+      <div class="waveform active"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
+      <strong>Enregistrement</strong>
+    </div>
+    <button type="button" class="green full" id="stopCommentBtn">⏹ Arrêter et publier</button>
+    <button type="button" class="danger full" id="cancelCommentBtn">Annuler</button>`;
+
+  try{
+    commentStream=await navigator.mediaDevices.getUserMedia({audio:true});
+    commentChunks=[];
+
+    const activeRecorder=new MediaRecorder(commentStream);
+    commentRecorder=activeRecorder;
+    commentStart=Date.now();
+
+    document.getElementById('commentTimer').textContent='00:00';
+
+    commentTimerInterval=setInterval(()=>{
+      const timer=document.getElementById('commentTimer');
+      if(timer)timer.textContent=formatTime((Date.now()-commentStart)/1000);
+      autoStopAudioAvis();
+    },500);
+
+    activeRecorder.ondataavailable=e=>{
+      if(e.data&&e.data.size)commentChunks.push(e.data);
+    };
+
+    activeRecorder.onstop=async()=>{
+      const blob=new Blob(commentChunks,{
+        type:activeRecorder.mimeType||'audio/webm'
+      });
+
+      releaseCommentRecording();
+      commentRecorder=null;
+
+      if(blob.size===0){
+        status.innerHTML='';
+        alert('Aucun son n’a été enregistré.');
+        return;
+      }
+
+      if(blob.size>0.5*1024*1024){
+        status.innerHTML='';
+        alert('Le commentaire audio dépasse 0,5 Mo. Enregistre un message plus court.');
+        return;
+      }
+
+      try{
+        const data=await fileToDataURL(blob);
+        post.comments=post.comments||[];
+
+        post.comments.push({
+          id:safeId(),
+          name:profileName(),authorId:myUserId(),
+          text:'',
+          media:[{type:'audio',data}],
+          children:[],
+          camp:avisCamp(post),
+          date:new Date().toLocaleString()
+        });
+        noteDebateActivity(post);
+
+        if(!persistPosts()){
+          post.comments.pop();
+          status.innerHTML='';
+          return;
+        }
+
+        megas-=1;
+        updateBalances();
+        addActivity('Un commentaire audio a été publié · 1 MÉGA utilisé.');
+        notifyDebateOwner(post,'a donné son avis en voix');
+        renderFeed();
+
+        const panel=document.getElementById('debate-'+postId);
+        if(panel)panel.classList.remove('hidden');
+      }catch(e){
+        status.innerHTML='';
+        alert('Impossible de sauvegarder le commentaire audio.');
+      }
+    };
+
+    document.getElementById('stopCommentBtn').onclick=()=>{
+      if(activeRecorder.state==='recording')activeRecorder.stop();
+    };
+
+    document.getElementById('cancelCommentBtn').onclick=()=>{
+      activeRecorder.onstop=()=>{
+        releaseCommentRecording();
+        commentRecorder=null;
+        status.innerHTML='';
+      };
+      if(activeRecorder.state==='recording')activeRecorder.stop();
+    };
+
+    activeRecorder.start();
+  }catch(e){
+    releaseCommentRecording();
+    commentRecorder=null;
+    status.innerHTML='';
+    alert('Autorise le microphone dans ton navigateur.');
+  }
+}
+
+async function startAudioReply(postId,commentId){
+  if(megas<1){
+    alert('Il te faut 1 MÉGA pour publier une réponse audio.');
+    return;
+  }
+
+  if(commentRecorder&&commentRecorder.state==='recording'){
+    alert('Arrête d’abord l’enregistrement audio déjà en cours.');
+    return;
+  }
+
+  const post=posts.find(p=>String(p.id)===String(postId));
+  const parent=post&&findCommentById(post.comments,commentId);
+  if(!post||!parent)return;
+
+  if(!canGiveAvis(post))return;
+
+  const status=document.getElementById('audio-reply-status-'+commentId);
+  if(!status)return;
+
+  status.innerHTML=`
+    <div class="recording-status">
+      <span class="recording-time" id="replyTimer-${esc(commentId)}">00:00</span>
+      <div class="waveform active"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
+      <strong>Réponse audio</strong>
+    </div>
+    <button type="button" class="green full" id="stopReplyBtn-${esc(commentId)}">⏹ Arrêter et publier</button>
+    <button type="button" class="danger full" id="cancelReplyBtn-${esc(commentId)}">Annuler</button>`;
+
+  try{
+    commentStream=await navigator.mediaDevices.getUserMedia({audio:true});
+    commentChunks=[];
+
+    const activeRecorder=new MediaRecorder(commentStream);
+    commentRecorder=activeRecorder;
+    commentStart=Date.now();
+
+    commentTimerInterval=setInterval(()=>{
+      const timer=document.getElementById('replyTimer-'+commentId);
+      if(timer)timer.textContent=formatTime((Date.now()-commentStart)/1000);
+      autoStopAudioAvis();
+    },500);
+
+    activeRecorder.ondataavailable=e=>{
+      if(e.data&&e.data.size)commentChunks.push(e.data);
+    };
+
+    activeRecorder.onstop=async()=>{
+      const blob=new Blob(commentChunks,{
+        type:activeRecorder.mimeType||'audio/webm'
+      });
+
+      releaseCommentRecording();
+      commentRecorder=null;
+
+      if(blob.size===0){
+        status.innerHTML='';
+        alert('Aucun son n’a été enregistré.');
+        return;
+      }
+
+      if(blob.size>0.5*1024*1024){
+        status.innerHTML='';
+        alert('La réponse audio dépasse 0,5 Mo. Enregistre un message plus court.');
+        return;
+      }
+
+      try{
+        const data=await fileToDataURL(blob);
+        const currentPost=posts.find(p=>String(p.id)===String(postId));
+        const currentParent=currentPost&&findCommentById(currentPost.comments,commentId);
+
+        if(!currentPost||!currentParent){
+          status.innerHTML='';
+          return;
+        }
+
+        if(!Array.isArray(currentParent.children))currentParent.children=[];
+
+        currentParent.children.push({
+          id:safeId(),
+          name:profileName(),authorId:myUserId(),
+          text:'',
+          media:[{type:'audio',data}],
+          children:[],
+          camp:avisCamp(currentPost),
+          date:new Date().toLocaleString()
+        });
+        noteDebateActivity(currentPost);
+
+        if(!persistPosts()){
+          currentParent.children.pop();
+          status.innerHTML='';
+          return;
+        }
+
+        megas-=1;
+        updateBalances();
+        addActivity('Une réponse audio a été publiée · 1 MÉGA utilisé.');
+        notifyDebateOwner(currentPost,'a répondu en voix');
+        renderFeed();
+
+        const panel=document.getElementById('debate-'+postId);
+        if(panel)panel.classList.remove('hidden');
+      }catch(e){
+        status.innerHTML='';
+        alert('Impossible de sauvegarder la réponse audio.');
+      }
+    };
+
+    document.getElementById('stopReplyBtn-'+commentId).onclick=()=>{
+      if(activeRecorder.state==='recording')activeRecorder.stop();
+    };
+
+    document.getElementById('cancelReplyBtn-'+commentId).onclick=()=>{
+      activeRecorder.onstop=()=>{
+        releaseCommentRecording();
+        commentRecorder=null;
+        status.innerHTML='';
+      };
+      if(activeRecorder.state==='recording')activeRecorder.stop();
+    };
+
+    activeRecorder.start();
+  }catch(e){
+    releaseCommentRecording();
+    commentRecorder=null;
+    status.innerHTML='';
+    alert('Autorise le microphone dans ton navigateur.');
+  }
+}
+
+function votePoll(id,index){
+  const post=posts.find(p=>String(p.id)===String(id));
+  if(!post||!post.poll)return;
+
+  const poll=post.poll;
+  if(index<0||index>1)return;
+
+  if(isDebateClosed(poll)){
+    alert('Ce débat est terminé : on ne peut plus voter.');
+    return;
+  }
+
+  poll.votes=poll.votes||[0,0];
+  const hadVote=!!poll.voted;
+  const oldIndex=Number.isInteger(poll.votedIndex)?poll.votedIndex:null;
+
+  if(hadVote&&oldIndex===null)return;
+  if(hadVote&&oldIndex===index)return;
+
+  const backupVotes=poll.votes.slice();
+  const backupVoted=poll.voted;
+  const backupIndex=poll.votedIndex;
+  const changes=[];
+
+  if(hadVote){
+    poll.votes[oldIndex]=Math.max(0,(Number(poll.votes[oldIndex])||0)-1);
+  }
+  poll.votes[index]=(Number(poll.votes[index])||0)+1;
+  poll.voted=true;
+  poll.votedIndex=index;
+  if(hadVote)retagAvis(post.comments,profileName(),index,changes);
+  noteDebateActivity(post);
+
+  if(!persistPosts()){
+    poll.votes=backupVotes;
+    poll.voted=backupVoted;
+    if(backupIndex===undefined){delete poll.votedIndex;}else{poll.votedIndex=backupIndex;}
+    changes.forEach(function(change){change.comment.camp=change.old;});
+    return;
+  }
+
+  const label=(poll.options||[])[index]||'';
+  if(hadVote){
+    addActivity('Ton vote au débat a été modifié : '+label+'.');
+    notifyDebateOwner(post,'a changé son vote pour '+label);
+  }else{
+    addActivity('Ton vote au débat a été enregistré.');
+    notifyDebateOwner(post,'a voté '+label);
+  }
+  renderFeed();
+}
+
+function toggleSaved(id){
+  const key=String(id);
+  if(saved.has(key))saved.delete(key);
+  else saved.add(key);
+
+  if(!saveJSON(SAVED_STORE,[...saved]))return;
+  showSaved();
+  renderFeed();
+}
+
+function showSaved(){
+  const box=document.getElementById('savedPosts');
+  if(!box)return;
+
+  const items=posts.filter(p=>saved.has(String(p.id)));
+
+  if(!items.length){
+    box.innerHTML='<p class="empty">Aucun favori enregistré.</p>';
+    return;
+  }
+
+  box.innerHTML=items.map(p=>`
+    <div class="reply">
+      <span class="comment-badge">★ FAVORI</span>
+      <div class="comment-head">
+        <strong>${esc(p.name)}</strong>
+      </div>
+      <p>${esc(p.text||'Publication audio ou média')}</p>
+      ${renderMedia(p.media)}
+      <div class="row">
+        <button type="button" class="blue" onclick="navigate('home')">Voir le fil</button>
+      </div>
+    </div>`).join('');
+}
+
+function editPost(id){
+  const post=posts.find(p=>String(p.id)===String(id));
+  if(!post)return;
+
+  if(post.name!==profileName()&&post.name!=='JUNOVABOOK'){
+    alert('Tu peux modifier uniquement tes propres publications.');
+    return;
+  }
+
+  const text=prompt('Modifier le texte de la publication :',post.text||'');
+  if(text===null)return;
+
+  post.text=text.trim();
+
+  if(!persistPosts())return;
+
+  addActivity('Une publication a été modifiée.');
+  renderFeed();
+}
+
+function deletePost(id){
+  const index=posts.findIndex(p=>String(p.id)===String(id));
+  if(index<0)return;
+
+  if(!confirm('Supprimer cette publication et ses commentaires ?'))return;
+
+  const removed=posts.splice(index,1)[0];
+
+  if(!persistPosts()){
+    posts.splice(index,0,removed);
+    return;
+  }
+
+  saved.delete(String(id));
+  saveJSON(SAVED_STORE,[...saved]);
+  addActivity('Une publication a été supprimée.');
+  renderFeed();
+  showSaved();
+}
+
+async function sharePost(id){
+  const post=posts.find(p=>String(p.id)===String(id));
+  if(!post)return;
+
+  const text=(post.name||'Membre JUNOVABOOK')+': '+(post.text||'Découvre cette publication sur JUNOVABOOK');
+  const shareData={title:'JUNOVABOOK',text,url:location.href};
+
+  try{
+    if(navigator.share){
+      await navigator.share(shareData);
+    }else if(navigator.clipboard&&navigator.clipboard.writeText){
+      await navigator.clipboard.writeText(text+' '+location.href);
+      alert('Texte copié. Tu peux le partager sur WhatsApp.');
+    }else{
+      prompt('Copie ce texte pour le partager :',text+' '+location.href);
+    }
+  }catch(e){
+    if(e.name!=='AbortError')alert('Le partage a été annulé ou n’est pas disponible.');
+  }
+}
+
+function renderDiscover(){
+  const box=document.getElementById('discoverResults');
+  if(!box)return;
+
+  const term=(document.getElementById('discoverSearch').value||'').trim().toLowerCase();
+  const matches=posts.filter(p=>
+    (p.text||'').toLowerCase().includes(term)||
+    (p.name||'').toLowerCase().includes(term)
+  );
+
+  box.innerHTML=matches.length?matches.map(p=>`
+    <div class="reply">
+      <span class="comment-badge">RÉSULTAT</span>
+      <div class="comment-head">
+        <strong>${esc(p.name)}</strong>
+      </div>
+      <p>${esc(p.text||'Publication audio ou média')}</p>
+      ${renderMedia(p.media)}
+      <div class="row">
+        <button type="button" class="blue" onclick="navigate('home')">Voir le fil d’actualité</button>
+      </div>
+    </div>`).join(''):'<p class="empty">Aucun résultat.</p>';
+}
+
+function clearDiscoverSearch(){
+  document.getElementById('discoverSearch').value='';
+  renderDiscover();
+}
+
+function searchFriends(){
+  const term=(document.getElementById('friendSearch').value||'').trim().toLowerCase();
+  const box=document.getElementById('friendResults');
+
+  const names=[...new Set(posts.map(p=>p.name).filter(Boolean))];
+  const matches=names.filter(name=>name.toLowerCase().includes(term));
+
+  box.innerHTML=matches.length
+    ?matches.map(name=>`<div class="reply">${esc(name)}</div>`).join('')
+    :'<p class="empty">Aucun nom trouvé dans les publications locales.</p>';
+}
+
+function saveProfile(){
+  const name=document.getElementById('displayName').value.trim();
+  if(!name){
+    alert('Saisis un nom ou un pseudonyme.');
+    return;
+  }
+
+  const current=profileName();
+  const hadSaved=!!localStorage.getItem(PROFILE_STORE);
+
+  if(name!==current){
+    if(hadSaved){
+      const wait=remainingMs('name',20);
+      if(wait>0){
+        alert('Tu pourras changer ton nom dans '+remainingText(wait)+'.');
+        document.getElementById('displayName').value=current;
+        return;
+      }
+    }
+    const history=loadNameHistory();
+    if(history.indexOf(current)===-1)history.push(current);
+    try{localStorage.setItem(nameHistoryKey(),JSON.stringify(history.slice(-30)));}catch(e){}
+    localStorage.setItem(PROFILE_STORE,name);
+    if(hadSaved)markChange('name');
+  }else{
+    localStorage.setItem(PROFILE_STORE,name);
+  }
+
+  renderProfilePhoto();
+  renderLimitNotes();
+  renderProfileLink();
+  renderFeed();
+  addActivity('Ton nom de profil a été enregistré.');
+  alert('Nom enregistré sur cet appareil.');
+}
+
+function loadProfile(){
+  document.getElementById('displayName').value=localStorage.getItem(PROFILE_STORE)||'';
+  migrateAvatars();
+  renderProfilePhoto();
+  renderLimitNotes();
+  renderProfileLink();
+  renderContacts();
+}
+
+function colorSettings(){
+  return {
+    '--accent':'accentColor',
+    '--home':'homeColor',
+    '--friends':'friendsColor',
+    '--create':'createColor',
+    '--messages':'messagesColor',
+    '--profile':'profileColor',
+    '--voice':'voiceColor',
+    '--debats':'debatsColor',
+    '--diffusions':'diffusionsColor',
+    '--express':'expressColor',
+    '--pub-a':'publicationAColor',
+    '--pub-b':'publicationBColor',
+    '--debat-launch':'debatLaunchColor'
+  };
+}
+
+function colorDefaults(){
+  return {
+    '--accent':'#ed4dba','--home':'#0f766e','--friends':'#ea580c',
+    '--create':'#2563eb','--messages':'#7c3aed','--profile':'#db2777',
+    '--voice':'#245fbd','--debats':'#245fbd','--diffusions':'#16815f',
+    '--express':'#c58a25','--pub-a':'#7c3aed','--pub-b':'#d946ef',
+    '--debat-launch':'#16815f'
+  };
+}
+
+function colorLuminance(hex){
+  const m=/^#?([0-9a-f]{6})$/i.exec(String(hex||'').trim());
+  if(!m)return null;
+  const n=parseInt(m[1],16);
+  const channel=function(v){v=v/255;return v<=0.03928?v/12.92:Math.pow((v+0.055)/1.055,2.4);};
+  return 0.2126*channel((n>>16)&255)+0.7152*channel((n>>8)&255)+0.0722*channel(n&255);
+}
+
+function contrastText(hex){
+  const L=colorLuminance(hex);
+  if(L===null)return '#ffffff';
+  const whiteRatio=1.05/(L+0.05);
+  const darkRatio=(L+0.05)/0.0556;
+  return darkRatio>whiteRatio?'#111111':'#ffffff';
+}
+
+function setColorVariable(variable,value){
+  const root=document.documentElement;
+  root.style.setProperty(variable,value);
+  const defaults=colorDefaults();
+  if(variable==='--pub-a'||variable==='--pub-b')return;
+  if(String(value).toLowerCase()===defaults[variable]){
+    root.style.removeProperty(variable+'-text');
+  }else{
+    root.style.setProperty(variable+'-text',contrastText(value));
+  }
+}
+
+function updatePublicationText(){
+  const root=document.documentElement;
+  const a=root.style.getPropertyValue('--pub-a')||colorDefaults()['--pub-a'];
+  const b=root.style.getPropertyValue('--pub-b')||colorDefaults()['--pub-b'];
+  const defaults=colorDefaults();
+  if(String(a).toLowerCase()===defaults['--pub-a']&&String(b).toLowerCase()===defaults['--pub-b']){
+    root.style.removeProperty('--pub-text');
+    return;
+  }
+  const la=colorLuminance(a),lb=colorLuminance(b);
+  const average=((la===null?0:la)+(lb===null?0:lb))/2;
+  const whiteRatio=1.05/(average+0.05);
+  const darkRatio=(average+0.05)/0.0556;
+  root.style.setProperty('--pub-text',darkRatio>whiteRatio?'#111111':'#ffffff');
+}
+
+function applyColors(){
+  const mapping=colorSettings();
+
+  for(const [variable,id] of Object.entries(mapping)){
+    const value=document.getElementById(id).value;
+    setColorVariable(variable,value);
+    localStorage.setItem('junovabook_color_'+variable,value);
+  }
+  updatePublicationText();
+
+  alert('Les couleurs ont été appliquées et sauvegardées.');
+}
+
+function resetColors(){
+  const mapping=colorSettings();
+  const defaults=colorDefaults();
+  const root=document.documentElement;
+
+  for(const [variable,id] of Object.entries(mapping)){
+    root.style.removeProperty(variable);
+    root.style.removeProperty(variable+'-text');
+    localStorage.removeItem('junovabook_color_'+variable);
+    document.getElementById(id).value=defaults[variable];
+  }
+  root.style.removeProperty('--pub-text');
+
+  alert('Les couleurs d’origine ont été remises.');
+}
+
+function loadColors(){
+  const mapping=colorSettings();
+
+  for(const [variable,id] of Object.entries(mapping)){
+    const value=localStorage.getItem('junovabook_color_'+variable);
+    if(value){
+      setColorVariable(variable,value);
+      const input=document.getElementById(id);
+      if(input)input.value=value;
+    }
+  }
+  updatePublicationText();
+}
+
+function claimFreeMegas(){
+  megas+=3;
+  updateBalances();
+  addActivity('3 MÉGAS gratuits ont été ajoutés à ton solde.');
+  alert('3 MÉGAS gratuits ajoutés.');
+}
+
+function clearLocalPosts(){
+  if(!confirm('Effacer toutes les publications et commentaires de cet appareil ?'))return;
+
+  posts=[];
+  saved.clear();
+  persistPosts();
+  saveJSON(SAVED_STORE,[]);
+  renderFeed();
+  showSaved();
+  alert('Les publications locales ont été effacées.');
+}
+
+async function installApp(){
+  if(deferredInstallPrompt){
+    deferredInstallPrompt.prompt();
+    await deferredInstallPrompt.userChoice;
+    deferredInstallPrompt=null;
+    return;
+  }
+
+  alert('Dans Firefox, ouvre le menu du navigateur puis choisis « Ajouter à l’écran d’accueil » si cette option est disponible.');
+}
+
+window.addEventListener('beforeinstallprompt',event=>{
+  event.preventDefault();
+  deferredInstallPrompt=event;
+});
+
+function registerServiceWorker(){
+  if(!('serviceWorker' in navigator))return;
+}
+
+document.getElementById('discoverSearch').addEventListener('input',renderDiscover);
+
+window.addEventListener('storage',event=>{
+  if([STORE,SAVED_STORE,ACTIVITY_STORE,MEGAS_STORE,NOVAS_STORE,PROFILE_STORE].includes(event.key)){
+    posts=readJSON(STORE,[]);
+    saved=new Set(readJSON(SAVED_STORE,[]).map(String));
+    activities=readJSON(ACTIVITY_STORE,[]);
+    megas=Number(localStorage.getItem(MEGAS_STORE)??20);
+    novas=Number(localStorage.getItem(NOVAS_STORE)??0);
+    updateBalances();
+    renderFeed();
+    renderActivities();
+    showSaved();
+  }
+});
+
+init();
+</script>
+</body>
+</html>
