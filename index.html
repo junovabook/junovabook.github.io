@@ -490,7 +490,7 @@ body .activity-row .avatar{width:36px;height:36px;flex-basis:36px;font-size:16px
 
 /* Compteur JUNOVAS : pastille rose sur le bouton du bas */
 .bottom button{position:relative}
-.count-badge{position:absolute;top:1px;right:3px;min-width:17px;height:17px;padding:0 4px;border-radius:9px;background:#ff4fc3;color:#fff;font-size:11px;line-height:17px;font-weight:bold;text-align:center}
+.count-badge{position:absolute;top:-6px;right:2px;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:#ff4fc3;color:#fff;font-size:11px;line-height:18px;font-weight:bold;text-align:center;box-shadow:0 0 0 2px #0e0a1f}
 .count-badge[hidden]{display:none}
 
 /* Choix de l'extrait audio */
@@ -551,7 +551,7 @@ body .link-card .avatar{width:48px;height:48px;flex-basis:48px;font-size:20px;ma
 .photo-viewer-close{position:absolute;top:14px;right:14px;width:44px;height:44px;margin:0;padding:0;border-radius:50%;background:#49366b;font-size:20px}
 
 /* ===== Invitations ===== */
-#inviteMessage{min-height:150px}
+#inviteMessage{min-height:210px}
 .invite-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid #44335e}
 .invite-row strong{flex:1;min-width:0;overflow-wrap:anywhere}
 .invite-row button{margin:0;padding:8px 12px;font-size:12px}
@@ -2149,7 +2149,8 @@ var inviteContacts=[];
 function inviteKey(){return 'junovabook_invite_message';}
 
 function defaultInviteMessage(){
-  return 'Salut ! C’est '+profileName()+'. Je t’invite sur JUNOVABOOK :\n'
+  const named=!!localStorage.getItem(PROFILE_STORE);
+  return 'Salut !'+(named?' C’est '+profileName()+'.':'')+' Je t’invite sur JUNOVABOOK :\n'
     +'🎙️ Publications vocales et musique\n'
     +'💬 Commentaires et réponses en audio\n'
     +'🗳️ Votes et débats POUR / CONTRE\n'
