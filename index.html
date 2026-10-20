@@ -5,6 +5,18 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#1A0B2E">
 <meta name="description" content="JUNOVABOOK — Le monde s'exprime ici">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="JUNOVABOOK">
+<meta property="og:title" content="JUNOVABOOK, le réseau où l'on débat avec sa voix">
+<meta property="og:description" content="Publications vocales et musique, commentaires et réponses en audio, votes et débats POUR / CONTRE.">
+<meta property="og:image" content="https://junovabook.github.io/apercu.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:locale" content="fr_FR">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="JUNOVABOOK, le réseau où l'on débat avec sa voix">
+<meta name="twitter:description" content="Publications vocales et musique, commentaires et réponses en audio, votes et débats POUR / CONTRE.">
+<meta name="twitter:image" content="https://junovabook.github.io/apercu.png">
 <title>JUNOVABOOK</title>
 <style>
 :root{
@@ -530,6 +542,20 @@ body .link-card .avatar{width:48px;height:48px;flex-basis:48px;font-size:20px;ma
 .contact-row button{margin:0;padding:8px 12px;font-size:12px}
 #profileLink{font-size:12px}
 
+
+/* ===== Photo en grand ===== */
+.avatar-photo{cursor:pointer}
+.photo-viewer{position:fixed;inset:0;z-index:60;background:rgba(8,5,20,.94);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px;gap:12px}
+.photo-viewer img{max-width:92vw;max-height:76vh;border-radius:14px;object-fit:contain;background:#1a1330}
+.photo-viewer-name{color:#fff;font-weight:bold;font-size:17px;margin:0}
+.photo-viewer-close{position:absolute;top:14px;right:14px;width:44px;height:44px;margin:0;padding:0;border-radius:50%;background:#49366b;font-size:20px}
+
+/* ===== Invitations ===== */
+#inviteMessage{min-height:150px}
+.invite-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid #44335e}
+.invite-row strong{flex:1;min-width:0;overflow-wrap:anywhere}
+.invite-row button{margin:0;padding:8px 12px;font-size:12px}
+
 /* 3bis. Contour bleu ciel dans les champs de saisie */
 input:focus,textarea:focus,select:focus{border-color:#38bdf8}
 input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px solid #38bdf8;outline-offset:2px}
@@ -645,6 +671,20 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px soli
   <hr><h3>Mes contacts</h3>
   <div id="contactList"></div>
   <p class="notice">Ajoute quelqu'un en ouvrant le lien de profil qu'il partage.</p>
+
+  <hr><h3>Inviter des amis</h3>
+  <label for="inviteMessage">Message d'invitation</label>
+  <textarea id="inviteMessage" rows="7" oninput="saveInviteMessage()"></textarea>
+  <button class="full" onclick="resetInviteMessage()">Remettre le message d'origine</button>
+  <button class="green full" onclick="inviteWhatsApp()">Inviter sur WhatsApp</button>
+  <button class="full" id="pickContactsBtn" onclick="pickContactsToInvite()">Choisir dans mes contacts</button>
+  <div id="inviteCountryRow">
+    <label for="inviteCountry">Indicatif du pays pour les numéros sans « + »</label>
+    <input id="inviteCountry" inputmode="numeric" maxlength="4" value="228">
+  </div>
+  <div id="inviteList"></div>
+  <button class="full" onclick="shareOnFacebook()">Publier sur Facebook</button>
+  <p class="notice">Tu choisis toi-même qui reçoit l'invitation, et c'est toi qui appuies sur « Envoyer ». L'application ne garde ni ne transmet tes contacts. Ton lien de profil est ajouté automatiquement au message.</p>
 </section>
 
 <section id="messages" class="panel hidden">
@@ -1787,7 +1827,7 @@ function avatarHTML(name,authorId){
   const label=String(name||'Membre JUNOVABOOK');
   const mine=authorId?authorId===myUserId():myNames().indexOf(label)!==-1;
   const photo=mine?avatarFor(myUserId()):'';
-  if(photo)return '<span class="avatar"><img src="'+esc(photo)+'" alt=""></span>';
+  if(photo)return '<span class="avatar avatar-photo" role="button" tabindex="0" data-viewer="mine" aria-label="Voir la photo de profil"><img src="'+esc(photo)+'" alt=""></span>';
   const letter=(label.trim().charAt(0)||'M').toUpperCase();
   return '<span class="avatar">'+esc(letter)+'</span>';
 }
@@ -1823,8 +1863,15 @@ async function chooseProfilePhoto(input){
   }
   try{
     const dataUrl=await squareThumbnail(file,96);
+    let large='';
+    try{large=await squareThumbnail(file,480);}catch(e){}
     photos[id]=dataUrl;
     localStorage.setItem(avatarStoreKey(),JSON.stringify(photos));
+    try{
+      const bigs=loadLargeAvatars();
+      if(large){bigs[id]=large;}else{delete bigs[id];}
+      localStorage.setItem(avatarLargeKey(),JSON.stringify(bigs));
+    }catch(e){}
     if(hadPhoto)markChange('photo');
     renderProfilePhoto();
     renderLimitNotes();
@@ -1848,6 +1895,11 @@ function removeProfilePhoto(){
   }
   delete photos[id];
   try{localStorage.setItem(avatarStoreKey(),JSON.stringify(photos));}catch(e){}
+  try{
+    const bigs=loadLargeAvatars();
+    delete bigs[id];
+    localStorage.setItem(avatarLargeKey(),JSON.stringify(bigs));
+  }catch(e){}
   markChange('photo');
   renderProfilePhoto();
   renderLimitNotes();
@@ -2033,6 +2085,202 @@ async function squareThumbnail(file,size){
   ctx.fillRect(0,0,size,size);
   ctx.drawImage(img,sx,sy,side,side,0,0,size,size);
   return canvas.toDataURL('image/jpeg',0.82);
+}
+
+/* ===== Photo de profil en grand (comme sur Facebook) ===== */
+function avatarLargeKey(){return 'junovabook_avatars_large';}
+
+function loadLargeAvatars(){
+  try{
+    const value=JSON.parse(localStorage.getItem(avatarLargeKey())||'{}');
+    return value&&typeof value==='object'&&!Array.isArray(value)?value:{};
+  }catch(e){
+    return {};
+  }
+}
+
+function avatarLargeFor(userId){
+  const photo=loadLargeAvatars()[String(userId||'')];
+  return typeof photo==='string'&&photo.indexOf('data:image/')===0?photo:'';
+}
+
+function closePhotoViewer(){
+  const box=document.getElementById('photoViewer');
+  if(box)box.remove();
+}
+
+function openPhotoViewer(){
+  const id=myUserId();
+  const src=avatarLargeFor(id)||avatarFor(id);
+  if(!src)return;
+  closePhotoViewer();
+  const box=document.createElement('div');
+  box.id='photoViewer';
+  box.className='photo-viewer';
+  box.setAttribute('role','dialog');
+  box.setAttribute('aria-label','Photo de profil');
+  box.innerHTML='<button type="button" class="photo-viewer-close" aria-label="Fermer">✕</button>'
+    +'<img src="'+esc(src)+'" alt="Photo de profil">'
+    +'<p class="photo-viewer-name">'+esc(profileName())+'</p>';
+  box.addEventListener('click',function(event){
+    if(event.target.tagName!=='IMG')closePhotoViewer();
+  });
+  document.body.appendChild(box);
+}
+
+document.addEventListener('click',function(event){
+  const target=event.target.closest?event.target.closest('[data-viewer="mine"]'):null;
+  if(target)openPhotoViewer();
+});
+
+document.addEventListener('keydown',function(event){
+  if(event.key==='Escape'){closePhotoViewer();return;}
+  if(event.key!=='Enter'&&event.key!==' ')return;
+  const target=event.target.closest?event.target.closest('[data-viewer="mine"]'):null;
+  if(target){
+    event.preventDefault();
+    openPhotoViewer();
+  }
+});
+
+/* ===== Inviter des amis (WhatsApp, contacts du téléphone, Facebook) ===== */
+var inviteContacts=[];
+
+function inviteKey(){return 'junovabook_invite_message';}
+
+function defaultInviteMessage(){
+  return 'Salut ! C’est '+profileName()+'. Je t’invite sur JUNOVABOOK :\n'
+    +'🎙️ Publications vocales et musique\n'
+    +'💬 Commentaires et réponses en audio\n'
+    +'🗳️ Votes et débats POUR / CONTRE\n'
+    +'Rien à installer, ça s’ouvre dans ton navigateur. Ajoute-moi :';
+}
+
+function renderInvite(){
+  const box=document.getElementById('inviteMessage');
+  if(!box)return;
+  const custom=localStorage.getItem(inviteKey());
+  box.value=custom!==null?custom:defaultInviteMessage();
+  const supported=!!(navigator.contacts&&navigator.contacts.select);
+  const picker=document.getElementById('pickContactsBtn');
+  const country=document.getElementById('inviteCountryRow');
+  if(picker)picker.classList.toggle('hidden',!supported);
+  if(country)country.classList.toggle('hidden',!supported);
+}
+
+function saveInviteMessage(){
+  const box=document.getElementById('inviteMessage');
+  if(!box)return;
+  try{localStorage.setItem(inviteKey(),box.value);}catch(e){}
+}
+
+function resetInviteMessage(){
+  try{localStorage.removeItem(inviteKey());}catch(e){}
+  renderInvite();
+}
+
+function buildInviteText(firstName,link){
+  const box=document.getElementById('inviteMessage');
+  let message=box&&box.value.trim()?box.value.trim():defaultInviteMessage();
+  if(firstName)message=message.replace(/^Salut\s*!/,'Salut '+firstName+' !');
+  return message.indexOf(link)!==-1?message:message+'\n'+link;
+}
+
+function whatsappNumber(raw,country){
+  let digits=String(raw||'').replace(/[^\d+]/g,'');
+  if(!digits)return '';
+  const cc=String(country||'').replace(/\D/g,'')||'228';
+  if(digits.charAt(0)==='+'){
+    digits=digits.slice(1);
+  }else if(digits.indexOf('00')===0){
+    digits=digits.slice(2);
+  }else{
+    digits=digits.replace(/^0+/,'');
+    if(!(digits.indexOf(cc)===0&&digits.length>=cc.length+8))digits=cc+digits;
+  }
+  digits=digits.replace(/\D/g,'');
+  return digits.length>=8&&digits.length<=15?digits:'';
+}
+
+function openExternal(url){
+  const w=window.open(url,'_blank');
+  if(w){
+    try{w.opener=null;}catch(e){}
+  }else{
+    location.href=url;
+  }
+}
+
+function inviteWhatsApp(){
+  const link=profileLinkFor();
+  if(!link){profileLinkUnavailable();return;}
+  openExternal('https://wa.me/?text='+encodeURIComponent(buildInviteText('',link)));
+}
+
+function shareOnFacebook(){
+  const link=profileLinkFor();
+  if(!link){profileLinkUnavailable();return;}
+  openExternal('https://www.facebook.com/sharer/sharer.php?u='+encodeURIComponent(link));
+}
+
+function inviteCountryValue(){
+  const input=document.getElementById('inviteCountry');
+  return input?input.value:'228';
+}
+
+async function pickContactsToInvite(){
+  const link=profileLinkFor();
+  if(!link){profileLinkUnavailable();return;}
+  if(!(navigator.contacts&&navigator.contacts.select)){
+    alert('Ton navigateur ne permet pas de choisir dans les contacts. Utilise « Inviter sur WhatsApp ».');
+    return;
+  }
+  try{
+    const picked=await navigator.contacts.select(['name','tel'],{multiple:true});
+    inviteContacts=picked.map(function(contact){
+      return {
+        name:cleanContactName((contact.name&&contact.name[0])||''),
+        tel:(contact.tel&&contact.tel[0])||''
+      };
+    }).filter(function(contact){return contact.tel;});
+    renderInviteList();
+  }catch(e){
+    if(e&&e.name==='AbortError')return;
+    alert('Impossible d’ouvrir tes contacts.');
+  }
+}
+
+function renderInviteList(){
+  const box=document.getElementById('inviteList');
+  if(!box)return;
+  if(!inviteContacts.length){
+    box.innerHTML='<p class="empty">Aucun contact avec un numéro n’a été choisi.</p>';
+    return;
+  }
+  const country=inviteCountryValue();
+  box.innerHTML=inviteContacts.map(function(contact,index){
+    const number=whatsappNumber(contact.tel,country);
+    const label=contact.name||contact.tel;
+    return '<div class="invite-row"><strong>'+esc(label)+'</strong>'
+      +(number
+        ?'<button type="button" onclick="sendInvite('+index+')">Envoyer sur WhatsApp</button>'
+        :'<span class="notice">Numéro invalide</span>')
+      +'</div>';
+  }).join('');
+}
+
+function sendInvite(index){
+  const contact=inviteContacts[index];
+  if(!contact)return;
+  const link=profileLinkFor();
+  if(!link){profileLinkUnavailable();return;}
+  const number=whatsappNumber(contact.tel,inviteCountryValue());
+  if(!number){
+    alert('Ce numéro n’est pas valide. Vérifie l’indicatif du pays.');
+    return;
+  }
+  const firstName=(contact.name||'').split(/\s+/)[0];
+  openExternal('https://wa.me/'+number+'?text='+encodeURIComponent(buildInviteText(firstName,link)));
 }
 
 /* ===== Réduction automatique des photos de plus de 2,5 Mo ===== */
@@ -3050,6 +3298,7 @@ function saveProfile(){
   renderProfilePhoto();
   renderLimitNotes();
   renderProfileLink();
+  renderInvite();
   renderFeed();
   addActivity('Ton nom de profil a été enregistré.');
   alert('Nom enregistré sur cet appareil.');
@@ -3062,6 +3311,7 @@ function loadProfile(){
   renderLimitNotes();
   renderProfileLink();
   renderContacts();
+  renderInvite();
 }
 
 function colorSettings(){
