@@ -556,6 +556,10 @@ body .link-card .avatar{width:48px;height:48px;flex-basis:48px;font-size:20px;ma
 .invite-row strong{flex:1;min-width:0;overflow-wrap:anywhere}
 .invite-row button{margin:0;padding:8px 12px;font-size:12px}
 
+
+/* ===== Compte en ligne ===== */
+.cloud-report{white-space:pre-wrap;word-break:break-word;background:#120c24;border:1px solid #44335e;border-radius:12px;padding:10px;font-size:12px;color:#e5d4ff;margin-top:8px}
+
 /* 3bis. Contour bleu ciel dans les champs de saisie */
 input:focus,textarea:focus,select:focus{border-color:#38bdf8}
 input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px solid #38bdf8;outline-offset:2px}
@@ -711,6 +715,9 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px soli
   <button class="pink full" onclick="saveProfile()">Enregistrer le nom</button>
   <p id="nameLimitNote" class="notice"></p>
 
+  <hr><h3>Mon compte en ligne</h3>
+  <div id="cloudAccount"></div>
+
   <hr><h3>Photo de profil</h3>
   <div id="profilePhotoPreview" class="profile-photo"></div>
   <label for="profilePhoto">Choisir ma photo</label>
@@ -780,6 +787,7 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px soli
 </nav>
 <footer>© 2026 JUNOVABOOK · Prototype en développement</footer>
 
+<script src="https://cdn.jsdelivr.net/npm/appwrite@17.0.0"></script>
 <script>
 'use strict';
 
@@ -2284,6 +2292,249 @@ function sendInvite(index){
   openExternal('https://wa.me/'+number+'?text='+encodeURIComponent(buildInviteText(firstName,link)));
 }
 
+/* ===== Compte en ligne (Appwrite) : connexion, inscription, vérification de la base ===== */
+/* À REMPLIR : remplace chaque À_REMPLACER par l'identifiant copié dans la console Appwrite
+   (icône de copie à côté du nom du projet, de la base, de chaque table et du bucket).
+   Ne mets jamais de clé secrète (API Key) ici. */
+  var JB_CLOUD={
+    endpoint:'https://fra.cloud.appwrite.io/v1',
+    project:'6ac5feea0027070c3293',
+    database:'6ac766200033751eb92e',
+    tables:{
+      profiles:'profiles',
+      publications:'publications',
+      commentaires:'commentaires',
+      votes:'votes',
+      jaimes:'jaimes',
+      notifications:'notifications'
+    },
+    bucket:'medias'
+  };
+var jbClient=null,jbAccount=null,jbTables=null,jbStorage=null,jbUser=null,jbProfile=null,jbReport='';
+
+var JB_EXPECTED={
+  profiles:['userId','pseudo','photoFileId','nameChangedAt','photoChangedAt'],
+  publications:['userId','texte','createdAt','kind','options','endsAt','mediaIds'],
+  commentaires:['publicationId','userId','texte','parentId','camp','audioFileId'],
+  votes:['publicationId','userId','choix'],
+  jaimes:['publicationId','userId'],
+  notifications:['userId','actorId','kind','publicationId','texte','lu']
+};
+var JB_INDEXED={commentaires:'publicationId',votes:'publicationId',jaimes:'publicationId',notifications:'userId'};
+
+function cloudIsPlaceholder(value){
+  return !value||String(value).indexOf('À_REMPLACER')!==-1;
+}
+
+function cloudMissingRequired(){
+  const missing=[];
+  if(cloudIsPlaceholder(JB_CLOUD.project))missing.push('identifiant du projet');
+  if(cloudIsPlaceholder(JB_CLOUD.database))missing.push('identifiant de la base');
+  if(cloudIsPlaceholder(JB_CLOUD.tables.profiles))missing.push('table profiles');
+  return missing;
+}
+
+function cloudInit(){
+  if(jbClient)return true;
+  if(!window.Appwrite||cloudMissingRequired().length)return false;
+  jbClient=new Appwrite.Client().setEndpoint(JB_CLOUD.endpoint).setProject(JB_CLOUD.project);
+  jbAccount=new Appwrite.Account(jbClient);
+  jbTables=new Appwrite.TablesDB(jbClient);
+  jbStorage=new Appwrite.Storage(jbClient);
+  return true;
+}
+
+function cloudErrorText(e){
+  const code=e&&e.code;
+  const msg=String((e&&e.message)||'');
+  if(code===401)return 'E-mail ou mot de passe incorrect.';
+  if(code===409)return 'Cet e-mail est déjà utilisé. Connecte-toi plutôt.';
+  if(code===429)return 'Trop d’essais. Attends quelques minutes puis réessaie.';
+  if(code===400){
+    if(/password/i.test(msg))return 'Le mot de passe doit contenir au moins 8 caractères.';
+    if(/email/i.test(msg))return 'Adresse e-mail invalide.';
+    return 'Données refusées par le service.';
+  }
+  if(code===403)return 'Action refusée : vérifie les permissions de la table (onglet Security).';
+  if(code===404)return 'Table ou élément introuvable : vérifie les identifiants dans la configuration.';
+  if(!code||/network|fetch|failed/i.test(msg))return 'Pas de connexion au service en ligne. Vérifie internet, et que junovabook.github.io est bien ajouté dans Apps.';
+  return 'Erreur : '+msg.slice(0,120);
+}
+
+function cloudProfilePermissions(userId){
+  return [
+    Appwrite.Permission.read(Appwrite.Role.users()),
+    Appwrite.Permission.update(Appwrite.Role.user(userId)),
+    Appwrite.Permission.delete(Appwrite.Role.user(userId))
+  ];
+}
+
+async function cloudEnsureProfile(user,pseudo){
+  const databaseId=JB_CLOUD.database,tableId=JB_CLOUD.tables.profiles;
+  try{
+    return await jbTables.getRow({databaseId:databaseId,tableId:tableId,rowId:user.$id});
+  }catch(e){
+    if(!e||e.code!==404)throw e;
+  }
+  const name=(pseudo||user.name||String(user.email||'membre').split('@')[0]||'Membre JUNOVABOOK').slice(0,60);
+  return await jbTables.createRow({
+    databaseId:databaseId,
+    tableId:tableId,
+    rowId:user.$id,
+    data:{userId:user.$id,pseudo:name},
+    permissions:cloudProfilePermissions(user.$id)
+  });
+}
+
+function cloudValidEmail(email){
+  return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(String(email||''));
+}
+
+async function cloudSignUp(){
+  if(!cloudInit())return;
+  const email=document.getElementById('cloudEmail').value.trim();
+  const password=document.getElementById('cloudPassword').value;
+  const pseudo=document.getElementById('cloudPseudo').value.trim();
+  if(!cloudValidEmail(email)){alert('Écris une adresse e-mail valide.');return;}
+  if(password.length<8){alert('Le mot de passe doit contenir au moins 8 caractères.');return;}
+  if(pseudo.length<2||pseudo.length>40){alert('Choisis un pseudo de 2 à 40 caractères.');return;}
+  try{
+    await jbAccount.create({userId:Appwrite.ID.unique(),email:email,password:password,name:pseudo});
+    await jbAccount.createEmailPasswordSession({email:email,password:password});
+    jbUser=await jbAccount.get();
+    jbProfile=await cloudEnsureProfile(jbUser,pseudo);
+    renderCloudAccount();
+    alert('Compte créé. Tu es connecté.');
+  }catch(e){
+    alert(cloudErrorText(e));
+  }
+}
+
+async function cloudLogin(){
+  if(!cloudInit())return;
+  const email=document.getElementById('cloudEmail').value.trim();
+  const password=document.getElementById('cloudPassword').value;
+  if(!cloudValidEmail(email)||!password){alert('Écris ton e-mail et ton mot de passe.');return;}
+  try{
+    await jbAccount.createEmailPasswordSession({email:email,password:password});
+    jbUser=await jbAccount.get();
+    jbProfile=await cloudEnsureProfile(jbUser,'');
+    renderCloudAccount();
+  }catch(e){
+    alert(cloudErrorText(e));
+  }
+}
+
+async function cloudLogout(){
+  if(!cloudInit())return;
+  try{await jbAccount.deleteSession({sessionId:'current'});}catch(e){}
+  jbUser=null;
+  jbProfile=null;
+  jbReport='';
+  renderCloudAccount();
+}
+
+async function cloudStart(){
+  renderCloudAccount();
+  if(!cloudInit())return;
+  try{
+    jbUser=await jbAccount.get();
+    jbProfile=await cloudEnsureProfile(jbUser,'');
+  }catch(e){
+    jbUser=null;
+    jbProfile=null;
+  }
+  renderCloudAccount();
+}
+
+async function cloudCheckTable(label,tableId,columns,indexedColumn){
+  const databaseId=JB_CLOUD.database;
+  if(cloudIsPlaceholder(tableId))return '✗ '+label+' : identifiant de la table non renseigné';
+  const lines=[];
+  try{
+    await jbTables.listRows({databaseId:databaseId,tableId:tableId,queries:[Appwrite.Query.select(columns),Appwrite.Query.limit(1)]});
+  }catch(e){
+    if(e&&e.code===404)return '✗ '+label+' : table introuvable (identifiant incorrect ?)';
+    if(e&&(e.code===401||e.code===403))return '✗ '+label+' : lecture refusée, vérifie « Row security » et Read : Users';
+    const missing=[];
+    for(const column of columns){
+      try{
+        await jbTables.listRows({databaseId:databaseId,tableId:tableId,queries:[Appwrite.Query.select([column]),Appwrite.Query.limit(1)]});
+      }catch(err){
+        missing.push(column);
+      }
+    }
+    return '✗ '+label+' : colonne(s) manquante(s) : '+(missing.length?missing.join(', '):'inconnue');
+  }
+  lines.push('✓ '+label+' : colonnes OK');
+  if(indexedColumn){
+    try{
+      await jbTables.listRows({databaseId:databaseId,tableId:tableId,queries:[Appwrite.Query.equal(indexedColumn,['test']),Appwrite.Query.limit(1)]});
+      lines.push('✓ '+label+' : index sur '+indexedColumn+' OK');
+    }catch(e){
+      lines.push('✗ '+label+' : index manquant sur '+indexedColumn);
+    }
+  }
+  return lines.join('\n');
+}
+
+async function cloudDiagnose(){
+  if(!cloudInit()||!jbUser){alert('Connecte-toi d’abord.');return;}
+  jbReport='Vérification en cours…';
+  renderCloudReport();
+  const out=[];
+  for(const name of Object.keys(JB_EXPECTED)){
+    out.push(await cloudCheckTable(name,JB_CLOUD.tables[name],JB_EXPECTED[name],JB_INDEXED[name]));
+  }
+  if(cloudIsPlaceholder(JB_CLOUD.bucket)){
+    out.push('✗ bucket medias : identifiant non renseigné');
+  }else{
+    try{
+      await jbStorage.listFiles({bucketId:JB_CLOUD.bucket});
+      out.push('✓ bucket medias : OK');
+    }catch(e){
+      out.push('✗ bucket medias : '+((e&&e.code===404)?'introuvable':'accès refusé, vérifie Read : Users'));
+    }
+  }
+  const bad=out.join('\n').split('\n').filter(function(l){return l.indexOf('✗')===0;}).length;
+  jbReport=out.join('\n')+'\n\n'+(bad?bad+' point(s) à corriger. Envoie ce résultat à Claude.':'Tout est prêt. Envoie « tout est OK » à Claude.');
+  renderCloudReport();
+}
+
+function renderCloudReport(){
+  const box=document.getElementById('cloudReport');
+  if(box)box.textContent=jbReport;
+}
+
+function renderCloudAccount(){
+  const box=document.getElementById('cloudAccount');
+  if(!box)return;
+  if(!window.Appwrite){
+    box.innerHTML='<p class="notice">Le service en ligne n’a pas pu être chargé. Vérifie ta connexion internet.</p>';
+    return;
+  }
+  const missing=cloudMissingRequired();
+  if(missing.length){
+    box.innerHTML='<p class="notice">Compte en ligne pas encore configuré. Il manque : '+esc(missing.join(', '))+'.</p>';
+    return;
+  }
+  if(jbUser){
+    const pseudo=(jbProfile&&jbProfile.pseudo)||jbUser.name||'';
+    box.innerHTML='<p><strong>Connecté</strong> : '+esc(pseudo)+' · '+esc(jbUser.email||'')+'</p>'
+      +'<button type="button" class="full" onclick="cloudLogout()">Se déconnecter</button>'
+      +'<button type="button" class="full" onclick="cloudDiagnose()">Vérifier ma base</button>'
+      +'<pre id="cloudReport" class="cloud-report"></pre>';
+    renderCloudReport();
+    return;
+  }
+  box.innerHTML='<p class="notice">Crée un compte gratuit pour retrouver ton profil et, bientôt, voir les publications des autres. Aucun SMS, aucun frais.</p>'
+    +'<label for="cloudEmail">Adresse e-mail</label><input id="cloudEmail" type="email" autocomplete="email" inputmode="email">'
+    +'<label for="cloudPassword">Mot de passe (8 caractères minimum)</label><input id="cloudPassword" type="password" autocomplete="current-password">'
+    +'<label for="cloudPseudo">Pseudo (pour créer un compte)</label><input id="cloudPseudo" maxlength="40" autocomplete="nickname">'
+    +'<button type="button" class="pink full" onclick="cloudSignUp()">Créer mon compte</button>'
+    +'<button type="button" class="full" onclick="cloudLogin()">Se connecter</button>';
+}
+
 /* ===== Réduction automatique des photos de plus de 2,5 Mo ===== */
 async function shrinkImageFile(file,limit){
   const img=await loadImageElement(file);
@@ -3313,6 +3564,7 @@ function loadProfile(){
   renderProfileLink();
   renderContacts();
   renderInvite();
+  cloudStart();
 }
 
 function colorSettings(){
