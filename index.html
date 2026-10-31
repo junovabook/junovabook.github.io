@@ -2468,7 +2468,7 @@ async function cloudSignUp(){
   if(problem){alert(problem);return;}
   try{
     console.log('Tentative creation compte', email);
-    await jbAccount.create({userId:Appwrite.ID.unique(),email:email,password:password,name:pseudo});
+await jbAccount.create(Appwrite.ID.unique(), email, password, pseudo);
     await jbAccount.createEmailPasswordSession({email:email,password:password});
     jbUser=await jbAccount.get();
   }catch(e){
