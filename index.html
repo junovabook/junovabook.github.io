@@ -2339,19 +2339,14 @@ function cloudMissingRequired(){
 }
 
 function cloudInit(){
-  if(jbClient)return true;
-  if(!window.Appwrite||cloudMissingRequired().length)return false;
-  try{
-    jbClient=new Appwrite.Client().setEndpoint(JB_CLOUD.endpoint).setProject(JB_CLOUD.project);
-    jbAccount=new Appwrite.Account(jbClient);
-    jbTables=new Appwrite.TablesDB(jbClient);
-    jbStorage=new Appwrite.Storage(jbClient);
-    return true;
-  }catch(e){
-    console.error('cloudInit failed', e);
-    return false;
+  if(jbClient) return true;
+  if(!window.Appwrite || cloudMissingRequired().length) return false;
+  jbClient=new Appwrite.Client().setEndpoint(JB_CLOUD.endpoint).setProject(JB_CLOUD.project);
+  jbAccount=new Appwrite.Account(jbClient);
+  jbTables=new Appwrite.TablesDB(jbClient);
+  jbStorage=new Appwrite.Storage(jbClient);
+  return true;
   }
-}
 
 function cloudErrorText(e){
   try{
@@ -2432,19 +2427,39 @@ async function cloudCreateProfile(user,pseudo){
   });
 }
 
+async function cloudEnsureProfileForCurrentUser(){
+  if(!cloudInit()||!jbUser)return null;
+  try{
+    return await jbTables.getRow({databaseId:JB_CLOUD.database,tableId:JB_CLOUD.tables.profiles,rowId:jbUser.$id});
+  }catch(e){
+    if(e&&e.code===404)return null;
+    throw e;
+  }
+}
+
 async function cloudChoosePseudo(){
   if(!cloudInit()||!jbUser)return;
   const input=document.getElementById('cloudPseudo');
+  const pseudo=input?input.value.trim():'';
+  const problem=cloudPseudoProblem(pseudo,jbUser);
+  if(problem){alert(problem);return;}
   try{
-    const created=await cloudCreateProfile(jbUser,input?input.value:'');
+    const existing=await cloudEnsureProfileForCurrentUser();
+    if(existing){
+      jbProfile=existing;
+      renderCloudAccount();
+      return;
+    }
+    const created=await cloudCreateProfile(jbUser,pseudo);
     if(created){
       jbProfile=created;
       renderCloudAccount();
+      alert('Pseudo enregistré ! Tu es connecté.');
     }
   }catch(e){
     alert(cloudErrorText(e));
   }
-}
+  }
 
 function cloudValidEmail(email){
   return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(String(email||''));
@@ -2452,53 +2467,55 @@ function cloudValidEmail(email){
 
 async function cloudSignUp(){
   if(!cloudInit()){
-    alert('Service non initialisé : vérifie Appwrite SDK et JB_CLOUD config');
+    alert('Service non initialisé : vérifie la configuration.');
     return;
   }
   const emailEl=document.getElementById('cloudEmail');
   const passEl=document.getElementById('cloudPassword');
-  const pseudoEl=document.getElementById('cloudPseudo');
   const email=emailEl?emailEl.value.trim():'';
   const password=passEl?passEl.value:'';
-  const pseudo=pseudoEl?pseudoEl.value.trim():'';
   if(!cloudValidEmail(email)){alert('Écris une adresse e-mail valide.');return;}
-  if(password.length<8){alert('Le mot de passe doit contenir au moins 8 caractères.');return;}
-  const owner=cloudIsOwner({email:email,labels:[]});
-  const problem=cloudPseudoProblem(pseudo,owner?{email:email,labels:[]}:null);
-  if(problem){alert(problem);return;}
+  if(password.length<8){alert('Le mot de passe doit avoir au moins 8 caractères.');return;}
   try{
-    console.log('Tentative creation compte', email);
-await jbAccount.create(Appwrite.ID.unique(), email, password, pseudo);
- await jbAccount.createEmailPasswordSession(email, password);
+    console.log('Tentative creation compte',email);
+    await jbAccount.create(Appwrite.ID.unique(),email,password);
+    await jbAccount.createEmailPasswordSession(email,password);
     jbUser=await jbAccount.get();
+    jbProfile=await cloudEnsureProfileForCurrentUser();
+    renderCloudAccount();
+    if(jbUser&&!jbProfile){
+      await cloudChoosePseudo();
+    }else{
+      alert('Compte créé ! Tu es connecté.');
+    }
   }catch(e){
     alert(cloudErrorText(e));
     return;
   }
-  try{
-    jbProfile=await cloudCreateProfile(jbUser,pseudo);
-  }catch(e){
-    alert('Compte créé mais pseudo non enregistré: '+cloudErrorText(e));
   }
-  renderCloudAccount();
-  if(jbProfile)alert('Compte créé. Tu es connecté.');
-}
 
 async function cloudLogin(){
-  if(!cloudInit())return;
-  const email=document.getElementById('cloudEmail').value.trim();
-  const password=document.getElementById('cloudPassword').value;
-  if(!cloudValidEmail(email)||!password){alert('Écris ton e-mail et ton mot de passe.');return;}
+  if(!cloudInit()){
+    alert('Service non initialisé : vérifie la configuration.');
+    return;
+  }
+  const emailEl=document.getElementById('cloudEmail');
+  const passEl=document.getElementById('cloudPassword');
+  const email=emailEl?emailEl.value.trim():'';
+  const password=passEl?passEl.value:'';
+  if(!cloudValidEmail(email)||!password){alert('Adresse e-mail et mot de passe requis.');return;}
   try{
-    await jbAccount.createEmailPasswordSession({email:email,password:password});
+    await jbAccount.createEmailPasswordSession(email,password);
     jbUser=await jbAccount.get();
-    jbProfile=await cloudLoadProfile(jbUser);
+    jbProfile=await cloudEnsureProfileForCurrentUser();
     renderCloudAccount();
+    if(jbUser&&!jbProfile){
+      await cloudChoosePseudo();
+    }
   }catch(e){
     alert(cloudErrorText(e));
   }
-}
-
+  }
 async function cloudLogout(){
   if(!cloudInit())return;
   try{await jbAccount.deleteSession({sessionId:'current'});}catch(e){}
@@ -2570,37 +2587,31 @@ function renderCloudReport(){
 
 function renderCloudAccount(){
   const box=document.getElementById('cloudAccount');
-  if(!box)return;
+  if(!box) return;
   if(!window.Appwrite){
-    box.innerHTML='<p class="notice">Le service en ligne n’a pas pu être chargé. Vérifie ta connexion internet.</p>';
+    box.innerHTML='<p class="notice">Le service en ligne n’a pas pu être chargé.</p>';
     return;
   }
   const missing=cloudMissingRequired();
   if(missing.length){
-    box.innerHTML='<p class="notice">Compte en ligne pas encore configuré. Il manque : '+esc(missing.join(', '))+'.</p>';
+    box.innerHTML='<p class="notice">Configuration manquante : '+esc(missing.join(', '))+'.</p>';
     return;
   }
   if(jbUser&&!jbProfile){
-    box.innerHTML='<p class="notice">Dernière étape : choisis ton pseudo. Tu peux utiliser un nom que d’autres ont déjà, sauf les noms officiels.</p>'
-      +'<label for="cloudPseudo">Pseudo</label><input id="cloudPseudo" maxlength="40" autocomplete="nickname">'
-      +'<button type="button" class="pink full" onclick="cloudChoosePseudo()">Valider mon pseudo</button>'
+    box.innerHTML='<p class="notice">Dernière étape : valide ton nom de profil.</p>'
+      +'<button type="button" class="pink full" onclick="cloudChoosePseudo()">Valider mon nom</button>'
       +'<button type="button" class="full" onclick="cloudLogout()">Se déconnecter</button>';
     return;
   }
   if(jbUser){
     const pseudo=(jbProfile&&jbProfile.pseudo)||jbUser.name||'';
     box.innerHTML='<p><strong>Connecté</strong> : '+esc(pseudo)+' · '+esc(jbUser.email||'')+'</p>'
-      +'<button type="button" class="full" onclick="cloudLogout()">Se déconnecter</button>'
-      +(cloudIsOwner(jbUser)
-        ?'<button type="button" class="full" onclick="cloudDiagnose()">Vérifier ma base (propriétaire)</button><pre id="cloudReport" class="cloud-report"></pre>'
-        :'');
-    renderCloudReport();
+      +'<button type="button" class="full" onclick="cloudLogout()">Se déconnecter</button>';
     return;
   }
-  box.innerHTML='<p class="notice">Crée un compte gratuit pour retrouver ton profil et, bientôt, voir les publications des autres. Aucun SMS, aucun frais.</p>'
+  box.innerHTML='<p class="notice">Crée un compte gratuit pour retrouver ton profil.</p>'
     +'<label for="cloudEmail">Adresse e-mail</label><input id="cloudEmail" type="email" autocomplete="email" inputmode="email">'
     +'<label for="cloudPassword">Mot de passe (8 caractères minimum)</label><input id="cloudPassword" type="password" autocomplete="current-password">'
-    +'<label for="cloudPseudo">Pseudo (pour créer un compte)</label><input id="cloudPseudo" maxlength="40" autocomplete="nickname">'
     +'<button type="button" class="pink full" onclick="cloudSignUp()">Créer mon compte</button>'
     +'<button type="button" class="full" onclick="cloudLogin()">Se connecter</button>';
   }
