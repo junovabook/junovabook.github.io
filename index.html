@@ -2308,9 +2308,7 @@ var JB_CLOUD={
   bucket:'medias',
   ownerEmails:['jsk852005@gmail.com']
 };
-/* ownerEmails : écris entre guillemets l'adresse e-mail de ton compte officiel JUNOVABOOK,
-   par exemple ownerEmails:['officiel@exemple.com']. Ce compte pourra prendre le pseudo réservé
-   et verra l'outil « Vérifier ma base ». */
+
 var jbClient=null,jbAccount=null,jbTables=null,jbStorage=null,jbUser=null,jbProfile=null,jbReport='';
 
 var JB_EXPECTED={
@@ -2338,33 +2336,36 @@ function cloudMissingRequired(){
 function cloudInit(){
   if(jbClient) return true;
   if(!window.Appwrite || cloudMissingRequired().length) return false;
-  jbClient=new Appwrite.Client().setEndpoint(JB_CLOUD.endpoint).setProject(JB_CLOUD.project);
-  jbAccount=new Appwrite.Account(jbClient);
-  jbTables=new Appwrite.TablesDB(jbClient);
-  jbStorage=new Appwrite.Storage(jbClient);
-  return true;
+  try {
+    jbClient=new Appwrite.Client().setEndpoint(JB_CLOUD.endpoint).setProject(JB_CLOUD.project);
+    jbAccount=new Appwrite.Account(jbClient);
+    jbTables=new Appwrite.TablesDB(jbClient);
+    jbStorage=new Appwrite.Storage(jbClient);
+    return true;
+  } catch(e) {
+    console.error("Erreur d'initialisation Appwrite", e);
+    return false;
   }
+}
 
 function cloudErrorText(e){
   try{
     const code = e && (e.code || e.status || (e.response && e.response.code));
-    const type = e && (e.type || '');
     const msg = String((e && (e.message || e.error || (e.response && e.response.message))) || e || '').slice(0,300);
-    console.error('Appwrite Error Full:', e);
-    if(code===401) return 'E-mail ou mot de passe incorrect. (401) '+msg;
-    if(code===409) return 'Cet e-mail est déjà utilisé. Connecte-toi plutôt. (409) '+msg;
+    if(code===401) return 'E-mail ou mot de passe incorrect. (401)';
+    if(code===409) return 'Cet e-mail est déjà utilisé. Connecte-toi plutôt. (409)';
     if(code===429) return 'Trop d’essais. Attends 2 minutes. (429)';
     if(code===400){
-      if(/password/i.test(msg)) return 'Mot de passe trop faible : 8 caractères minimum. (400) '+msg;
-      if(/email/i.test(msg)) return 'Adresse e-mail invalide. (400) '+msg;
+      if(/password/i.test(msg)) return 'Mot de passe trop faible : 8 caractères minimum. (400)';
+      if(/email/i.test(msg)) return 'Adresse e-mail invalide. (400)';
       return 'Données refusées (400) : '+msg;
     }
-    if(code===403) return 'Permission refusée (403) : vérifie permissions Tables > Security. '+msg;
-    if(code===404) return 'Table introuvable (404) : vérifie les IDs dans JB_CLOUD. '+msg;
+    if(code===403) return 'Permission refusée (403) : vérifie les permissions de la table.';
+    if(code===404) return 'Table introuvable (404) : vérifie les IDs dans JB_CLOUD.';
     if(!code && /network|fetch|Failed to fetch|Load failed/i.test(msg)){
-      return 'Pas de connexion réseau. Vérifie internet et que junovabook.github.io est bien dans Appwrite > Auth > Settings > Platforms. Détail: '+msg;
+      return 'Pas de connexion réseau. Vérifie internet et que junovabook.github.io est dans Apps.';
     }
-    return 'Erreur Appwrite ('+(code||'?')+') '+(type?'['+type+'] ':'')+': '+msg;
+    return 'Erreur Appwrite ('+(code||'?')+') : '+msg;
   }catch(err){
     return 'Erreur inconnue : '+String(err);
   }
@@ -2386,11 +2387,11 @@ function cloudIsOwner(user){
 
 function cloudPseudoProblem(pseudo,user){
   const clean=String(pseudo||'').trim();
-  if(clean.length<2||clean.length>40)return 'Choisis un pseudo de 2 à 40 caractères.';
+  if(clean.length<2||clean.length>40)return 'Choisis un nom de 2 à 40 caractères.';
   const key=cloudPseudoKey(clean);
-  if(key.length<2)return 'Le pseudo doit contenir des lettres ou des chiffres.';
+  if(key.length<2)return 'Le nom doit contenir des lettres ou des chiffres.';
   const reserved=JB_RESERVED_EXACT.indexOf(key)!==-1||JB_RESERVED_CONTAINS.some(function(word){return key.indexOf(word)!==-1;});
-  if(reserved&&!cloudIsOwner(user))return 'Ce nom est réservé au compte officiel JUNOVABOOK. Choisis-en un autre.';
+  if(reserved&&!cloudIsOwner(user))return 'Ce nom est réservé au compte officiel JUNOVABOOK.';
   return '';
 }
 
@@ -2403,6 +2404,7 @@ function cloudProfilePermissions(userId){
 }
 
 async function cloudLoadProfile(user){
+  if(!cloudInit()) return null;
   try{
     return await jbTables.getRow({databaseId:JB_CLOUD.database,tableId:JB_CLOUD.tables.profiles,rowId:user.$id});
   }catch(e){
@@ -2412,32 +2414,42 @@ async function cloudLoadProfile(user){
 }
 
 async function cloudCreateProfile(user,pseudo){
+  if(!cloudInit()) return null;
   const clean=String(pseudo||'').trim();
   const problem=cloudPseudoProblem(clean,user);
   if(problem){alert(problem);return null;}
-  return await jbTables.createRow({
-    databaseId:JB_CLOUD.database,
-    tableId:JB_CLOUD.tables.profiles,
-    rowId:user.$id,
-    data:{userId:user.$id,pseudo:clean},
-    permissions:cloudProfilePermissions(user.$id)
-  });
-}
-
-async function cloudEnsureProfileForCurrentUser(){
-  if(!cloudInit()||!jbUser)return null;
   try{
-    return await jbTables.getRow({databaseId:JB_CLOUD.database,tableId:JB_CLOUD.tables.profiles,rowId:jbUser.$id});
+    return await jbTables.createRow({
+      databaseId:JB_CLOUD.database,
+      tableId:JB_CLOUD.tables.profiles,
+      rowId:user.$id,
+      data:{userId:user.$id,pseudo:clean},
+      permissions:cloudProfilePermissions(user.$id)
+    });
   }catch(e){
-    if(e&&e.code===404)return null;
     throw e;
   }
 }
 
+async function cloudEnsureProfileForCurrentUser(){
+  if(!cloudInit()||!jbUser)return null;
+  return await cloudLoadProfile(jbUser);
+}
+
 async function cloudChoosePseudo(){
   if(!cloudInit()||!jbUser)return;
-  const input=document.getElementById('cloudPseudo');
-  const pseudo=input?input.value.trim():'';
+  
+  let pseudo = profileName();
+  if(pseudo === 'Membre JUNOVABOOK' || !pseudo) {
+    pseudo = prompt("Dernière étape : Quel nom de profil veux-tu utiliser ?");
+    if(!pseudo || !pseudo.trim()) { alert("Un nom est obligatoire pour finaliser."); return; }
+    pseudo = pseudo.trim();
+    localStorage.setItem(PROFILE_STORE, pseudo);
+    const inputName = document.getElementById('displayName');
+    if(inputName) inputName.value = pseudo;
+    renderProfilePhoto();
+  }
+  
   const problem=cloudPseudoProblem(pseudo,jbUser);
   if(problem){alert(problem);return;}
   try{
@@ -2451,55 +2463,65 @@ async function cloudChoosePseudo(){
     if(created){
       jbProfile=created;
       renderCloudAccount();
-      alert('Pseudo enregistré ! Tu es connecté.');
+      alert('Nom validé ! Tu es connecté.');
     }
   }catch(e){
     alert(cloudErrorText(e));
   }
-  }
+}
 
 function cloudValidEmail(email){
   return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(String(email||''));
 }
 
 async function cloudSignUp(){
-  if(!cloudInit()){
-    alert('Service non initialisé : vérifie la configuration.');
-    return;
-  }
+  if(!cloudInit()){ alert('Service non initialisé.'); return; }
   const emailEl=document.getElementById('cloudEmail');
   const passEl=document.getElementById('cloudPassword');
   const email=emailEl?emailEl.value.trim():'';
   const password=passEl?passEl.value:'';
   if(!cloudValidEmail(email)){alert('Écris une adresse e-mail valide.');return;}
   if(password.length<8){alert('Le mot de passe doit avoir au moins 8 caractères.');return;}
+  
+  let pseudo = profileName();
+  if(pseudo === 'Membre JUNOVABOOK' || !pseudo) {
+    pseudo = prompt("Bienvenue sur JUNOVABOOK !\nQuel nom de profil veux-tu utiliser ?");
+    if(!pseudo || !pseudo.trim()) { alert("Tu dois choisir un nom pour créer ton compte."); return; }
+    pseudo = pseudo.trim();
+    localStorage.setItem(PROFILE_STORE, pseudo);
+    const inputName = document.getElementById('displayName');
+    if(inputName) inputName.value = pseudo;
+    renderProfilePhoto();
+  }
+  
+  const problem = cloudPseudoProblem(pseudo, jbUser);
+  if(problem){alert(problem);return;}
+
   try{
-    console.log('Tentative creation compte',email);
-    await jbAccount.create(Appwrite.ID.unique(),email,password);
-    await jbAccount.createEmailPasswordSession(email,password);
+    await jbAccount.create(Appwrite.ID.unique(), email, password, pseudo);
+    await jbAccount.createEmailPasswordSession(email, password);
     jbUser=await jbAccount.get();
     jbProfile=await cloudEnsureProfileForCurrentUser();
-    renderCloudAccount();
-    if(jbUser&&!jbProfile){
-      await cloudChoosePseudo();
-    }else{
-      alert('Compte créé ! Tu es connecté.');
+    if(!jbProfile) {
+      jbProfile=await cloudCreateProfile(jbUser,pseudo);
     }
+    renderCloudAccount();
+    if(jbProfile) alert('Compte créé avec succès. Bienvenue '+pseudo+' !');
   }catch(e){
     alert(cloudErrorText(e));
-    return;
   }
-  }
+}
+
 async function cloudLogin(){
   if(!cloudInit())return;
-  const email=document.getElementById('cloudEmail').value.trim();
-  const password=document.getElementById('cloudPassword').value;
+  const emailEl=document.getElementById('cloudEmail');
+  const passEl=document.getElementById('cloudPassword');
+  const email=emailEl?emailEl.value.trim():'';
+  const password=passEl?passEl.value:'';
   if(!cloudValidEmail(email)||!password){alert('Écris ton e-mail et ton mot de passe.');return;}
   
   try{
-    // On force la fermeture de toute session fantôme qui traînerait
     try { await jbAccount.deleteSession('current'); } catch(err) {}
-
     await jbAccount.createEmailPasswordSession(email, password);
     jbUser=await jbAccount.get();
     jbProfile=await cloudLoadProfile(jbUser);
@@ -2507,11 +2529,11 @@ async function cloudLogin(){
   }catch(e){
     alert(cloudErrorText(e));
   }
-  }
+}
 
 async function cloudLogout(){
   if(!cloudInit())return;
-  try{await jbAccount.deleteSession({sessionId:'current'});}catch(e){}
+  try{ await jbAccount.deleteSession('current'); }catch(e){} /* CORRECTION ICI */
   jbUser=null;
   jbProfile=null;
   jbReport='';
@@ -2529,53 +2551,6 @@ async function cloudStart(){
     jbProfile=null;
   }
   renderCloudAccount();
-}
-
-async function cloudCheckTable(label,tableId,columns,indexedColumn){
-  const databaseId=JB_CLOUD.database;
-  if(cloudIsPlaceholder(tableId))return '✗ '+label+' : identifiant de la table non renseigné';
-  try{
-    await jbTables.listRows({databaseId:databaseId,tableId:tableId,queries:[Appwrite.Query.select(columns),Appwrite.Query.limit(1)]});
-    return '✓ '+label+' : OK';
-  }catch(e){
-    if(e&&e.code===404)return '✗ '+label+' : table introuvable (identifiant incorrect ?)';
-    if(e&&(e.code===401||e.code===403))return '✗ '+label+' : lecture refusée, vérifie Row security';
-    const missing=[];
-    for(const column of columns){
-      try{
-        await jbTables.listRows({databaseId:databaseId,tableId:tableId,queries:[Appwrite.Query.select([column]),Appwrite.Query.limit(1)]});
-      }catch(err){
-        missing.push(column);
-      }
-    }
-    if(missing.length) return '✗ '+label+' : colonnes manquantes: '+missing.join(', ')+' - '+cloudErrorText(e);
-    return '✗ '+label+' : '+cloudErrorText(e);
-  }
-}
-
-async function cloudDiagnose(){
-  const reportEl=document.getElementById('cloudReport');
-  if(reportEl)reportEl.textContent='Vérification en cours...';
-  jbReport='Vérification en cours...\n';
-  if(!cloudInit()){
-    jbReport='Init échoué. Vérifie SDK et config.';
-    if(reportEl)reportEl.textContent=jbReport;
-    return;
-  }
-  const results=[];
-  for(const key of Object.keys(JB_CLOUD.tables)){
-    const cols=JB_EXPECTED[key]||['userId'];
-    const idx=JB_INDEXED[key]||null;
-    const res=await cloudCheckTable(key, JB_CLOUD.tables[key], cols, idx);
-    results.push(res);
-  }
-  jbReport=results.join('\n');
-  if(reportEl)reportEl.textContent=jbReport;
-}
-
-function renderCloudReport(){
-  const el=document.getElementById('cloudReport');
-  if(el&&jbReport)el.textContent=jbReport;
 }
 
 function renderCloudAccount(){
