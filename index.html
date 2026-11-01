@@ -769,10 +769,7 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px soli
   <p>Tu peux ajouter le site à l'écran d'accueil si le navigateur le permet.</p>
   <button class="blue full" onclick="installApp()">👉 INSTALLER JUNOVABOOK</button>
 
-  <hr><h3>Compte</h3>
-  <p class="notice">Les comptes sécurisés et la synchronisation ne sont pas encore activés. Ne saisis pas de vrai mot de passe ici.</p>
-  <button class="full" onclick="alert('La création de compte nécessite un serveur sécurisé.')">Créer un compte</button>
-  <button class="full" onclick="alert('La connexion nécessite un serveur sécurisé.')">Se connecter</button>
+ 
 
   <hr><button class="danger full" onclick="clearLocalPosts()">Effacer les publications de cet appareil</button>
 </section>
@@ -2493,29 +2490,25 @@ async function cloudSignUp(){
     return;
   }
   }
-
 async function cloudLogin(){
-  if(!cloudInit()){
-    alert('Service non initialisé : vérifie la configuration.');
-    return;
-  }
-  const emailEl=document.getElementById('cloudEmail');
-  const passEl=document.getElementById('cloudPassword');
-  const email=emailEl?emailEl.value.trim():'';
-  const password=passEl?passEl.value:'';
-  if(!cloudValidEmail(email)||!password){alert('Adresse e-mail et mot de passe requis.');return;}
+  if(!cloudInit())return;
+  const email=document.getElementById('cloudEmail').value.trim();
+  const password=document.getElementById('cloudPassword').value;
+  if(!cloudValidEmail(email)||!password){alert('Écris ton e-mail et ton mot de passe.');return;}
+  
   try{
-    await jbAccount.createEmailPasswordSession(email,password);
+    // On force la fermeture de toute session fantôme qui traînerait
+    try { await jbAccount.deleteSession('current'); } catch(err) {}
+
+    await jbAccount.createEmailPasswordSession(email, password);
     jbUser=await jbAccount.get();
-    jbProfile=await cloudEnsureProfileForCurrentUser();
+    jbProfile=await cloudLoadProfile(jbUser);
     renderCloudAccount();
-    if(jbUser&&!jbProfile){
-      await cloudChoosePseudo();
-    }
   }catch(e){
     alert(cloudErrorText(e));
   }
   }
+
 async function cloudLogout(){
   if(!cloudInit())return;
   try{await jbAccount.deleteSession({sessionId:'current'});}catch(e){}
