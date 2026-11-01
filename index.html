@@ -2425,44 +2425,19 @@ async function cloudLoadProfile(user){
 
 async function cloudCreateProfile(user, pseudo){
   if(!cloudInit()) return null;
-  
-  // Sécurité : s'assurer que jbTables est bien instancié
-  if(!jbTables) {
-    const DBService = Appwrite.TablesDB || Appwrite.Databases;
-    jbTables = new DBService(jbClient);
+  const clean=String(pseudo||'').trim();
+  const problem=cloudPseudoProblem(clean,user);
+  if(problem){alert(problem);return null;}
+  const jwt=(await jbAccount.createJWT()).jwt;
+  const res=await fetch(JB_CLOUD.endpoint+'/databases/'+JB_CLOUD.database+'/collections/'+JB_CLOUD.tables.profiles+'/documents',{
+    method:'POST',
+    headers:{'Content-Type':'application/json','X-Appwrite-Project':JB_CLOUD.project,'X-Appwrite-JWT':jwt},
+    body:JSON.stringify({documentId:user.$id,data:{userId:user.$id,pseudo:clean},permissions:cloudProfilePermissions(user.$id)})
+  });
+  const body=await res.json().catch(function(){return {};});
+  if(!res.ok){const err=new Error(body.message||('Erreur '+res.status));err.code=res.status;throw err;}
+  return body;
   }
-
-  const clean = String(pseudo || '').trim();
-  const problem = cloudPseudoProblem(clean, user);
-  if(problem){ alert(problem); return null; }
-
-  try{
-    // Vérification de la méthode disponible pour la création
-    if (typeof jbTables.createRow === 'function') {
-      return await jbTables.createRow({
-        databaseId: JB_CLOUD.database,
-        tableId: JB_CLOUD.tables.profiles,
-        rowId: user.$id,
-        data: { userId: user.$id, pseudo: clean },
-        permissions: cloudProfilePermissions(user.$id)
-      });
-    } else if (typeof jbTables.createDocument === 'function') {
-      // Syntaxe alternative pour createDocument (databaseId, collectionId, documentId, data, permissions)
-      return await jbTables.createDocument(
-        JB_CLOUD.database,
-        JB_CLOUD.tables.profiles,
-        user.$id,
-        { userId: user.$id, pseudo: clean },
-        cloudProfilePermissions(user.$id)
-      );
-    } else {
-      throw new Error("Aucune méthode de création de ligne/document n'est disponible dans l'objet jbTables.");
-    }
-  } catch(e){
-    throw e;
-  }
-}
-
 
 async function cloudEnsureProfileForCurrentUser(){
   if(!cloudInit()||!jbUser)return null;
