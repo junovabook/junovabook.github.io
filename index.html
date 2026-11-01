@@ -2334,19 +2334,20 @@ function cloudMissingRequired(){
 }
 
 function cloudInit(){
-  if(jbClient) return true;
+  if(jbClient && jbAccount && jbTables && jbStorage) return true; 
   if(!window.Appwrite || cloudMissingRequired().length) return false;
   try {
     jbClient=new Appwrite.Client().setEndpoint(JB_CLOUD.endpoint).setProject(JB_CLOUD.project);
     jbAccount=new Appwrite.Account(jbClient);
-    jbTables=new Appwrite.TablesDB(jbClient);
+    const DB = Appwrite.TablesDB || Appwrite.Databases;
+    jbTables = new DB(jbClient);
     jbStorage=new Appwrite.Storage(jbClient);
     return true;
   } catch(e) {
-    console.error("Erreur d'initialisation Appwrite", e);
+    jbClient=null; jbAccount=null; jbTables=null; jbStorage=null;
     return false;
   }
-}
+  }
 
 function cloudErrorText(e){
   try{
@@ -2404,17 +2405,24 @@ function cloudProfilePermissions(userId){
 }
 
 async function cloudLoadProfile(user){
-  if(!cloudInit()) return null;
+  if(!cloudInit()) return null; 
+  if(!jbTables) {
+    // Sécurité : si jbTables est vide, on le recrée de force
+    jbTables = new (Appwrite.TablesDB || Appwrite.Databases)(jbClient); 
+  }
   try{
     return await jbTables.getRow({databaseId:JB_CLOUD.database,tableId:JB_CLOUD.tables.profiles,rowId:user.$id});
   }catch(e){
     if(e&&e.code===404)return null;
     throw e;
   }
-}
+                                                                                              }
 
 async function cloudCreateProfile(user,pseudo){
   if(!cloudInit()) return null;
+  if(!jbTables) {
+    jbTables = new (Appwrite.TablesDB || Appwrite.Databases)(jbClient); 
+  }
   const clean=String(pseudo||'').trim();
   const problem=cloudPseudoProblem(clean,user);
   if(problem){alert(problem);return null;}
@@ -2429,12 +2437,12 @@ async function cloudCreateProfile(user,pseudo){
   }catch(e){
     throw e;
   }
-}
+  }
 
 async function cloudEnsureProfileForCurrentUser(){
   if(!cloudInit()||!jbUser)return null;
-  return await cloudLoadProfile(jbUser);
-}
+  return await cloudLoadProfile(jbUser); // On utilise la fonction sécurisée ci-dessus
+  }
 
 async function cloudChoosePseudo(){
   if(!cloudInit()||!jbUser)return;
