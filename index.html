@@ -2502,7 +2502,7 @@ async function cloudSignUp(){
     renderProfilePhoto();
   }
   
-  const problem = cloudPseudoProblem(pseudo, jbUser);
+  const problem = cloudPseudoProblem(pseudo, {email: email});
   if(problem){alert(problem);return;}
 
   try{
@@ -3792,6 +3792,154 @@ window.addEventListener('storage',event=>{
     showSaved();
   }
 });
+
+/* ===== BLOC A : publications en ligne ===== */
+var jbJwt=null, jbJwtAt=0, jbSyncing=false;
+
+async function cloudJwt(){
+  if(!jbUser) return null;
+  if(jbJwt && Date.now()-jbJwtAt<600000) return jbJwt;
+  jbJwt=(await jbAccount.createJWT()).jwt;
+  jbJwtAt=Date.now();
+  return jbJwt;
+}
+
+async function cloudApi(method,path,body){
+  const jwt=await cloudJwt();
+  if(!jwt) throw new Error('Non connecté');
+  const res=await fetch(JB_CLOUD.endpoint+'/databases/'+JB_CLOUD.database+'/collections/'+path,{
+    method:method,
+    headers:{'Content-Type':'application/json','X-Appwrite-Project':JB_CLOUD.project,'X-Appwrite-JWT':jwt},
+    body:body?JSON.stringify(body):undefined
+  });
+  const data=await res.json().catch(function(){return {};});
+  if(!res.ok){const e=new Error(data.message||('Erreur '+res.status));e.code=res.status;throw e;}
+  return data;
+}
+
+async function cloudSyncPublications(){
+  if(jbSyncing||!jbUser||!jbProfile) return;
+  jbSyncing=true;
+  try{
+    const Q=Appwrite.Query;
+    const list=await cloudApi('GET','publications/documents?queries[]='+encodeURIComponent(Q.orderDesc('$createdAt'))+'&queries[]='+encodeURIComponent(Q.limit(50)));
+    const rows=list.documents||[];
+    const ids=[];
+    rows.forEach(function(r){ if(ids.indexOf(r.userId)===-1) ids.push(r.userId); });
+    const names={};
+    if(ids.length){
+      const pl=await cloudApi('GET','profiles/documents?queries[]='+encodeURIComponent(Q.equal('$id',ids))+'&queries[]='+encodeURIComponent(Q.limit(100)));
+      (pl.documents||[]).forEach(function(p){ names[p.$id]=p.pseudo; });
+    }
+    const cloudPosts=rows.map(function(r){
+      let opts=null; try{ opts=JSON.parse(r.options||'null'); }catch(e){}
+      const debat=r.kind==='debat'&&Array.isArray(opts)&&opts.length===2;
+      const old=posts.find(function(p){ return String(p.id)===String(r.$id); });
+      return {
+        id:r.$id, cloud:true,
+        name:names[r.userId]||'Membre JUNOVABOOK',
+        authorId:r.userId,
+        text:r.texte||'', media:[],
+        date:r.createdAt||r.$createdAt,
+        loves:old?old.loves:0,
+        comments:old&&Array.isArray(old.comments)?old.comments:[],
+        type:debat?'debat':'publication',
+        poll:debat?(old&&old.poll?old.poll:{options:opts,votes:[0,0],voted:false,endsAt:r.endsAt?new Date(r.endsAt).getTime():null,events:[]}):null
+      };
+    });
+    posts=posts.filter(function(p){ return !p.cloud; }).concat(cloudPosts);
+    posts.sort(function(a,b){ return new Date(b.date)-new Date(a.date); });
+    persistPosts();
+    renderFeed();
+  }catch(e){
+    console.error('Sync publications',e);
+  }finally{
+    jbSyncing=false;
+  }
+}
+
+/* synchronisation après chaque changement de compte */
+var _renderCloudAccount=renderCloudAccount;
+renderCloudAccount=function(){
+  _renderCloudAccount();
+  if(jbUser&&jbProfile){ cloudSyncPublications(); }
+  else if(!jbUser){
+    posts=posts.filter(function(p){ return !p.cloud; });
+    renderFeed();
+  }
+};
+
+/* mes publications en ligne m'appartiennent */
+var _isMine=isMine;
+isMine=function(item){
+  return _isMine(item)||!!(item&&jbUser&&item.authorId&&item.authorId===jbUser.$id);
+};
+
+/* publier en ligne (texte et débats sans média) */
+var _publish=publish;
+publish=async function(){
+  const files=[...document.getElementById('postMedia').files];
+  if(!(jbUser&&jbProfile)||files.length||composerMode==='voice') return _publish();
+  const text=document.getElementById('postText').value.trim();
+  if(!text){ alert('Écris un message ou ajoute un média.'); return; }
+  const data={userId:jbUser.$id,texte:text,createdAt:new Date().toISOString(),kind:'post'};
+  if(composerMode==='debat'){
+    const a=document.getElementById('optionA').value.trim();
+    const b=document.getElementById('optionB').value.trim();
+    if(!a||!b){ alert('Ajoute les deux choix du débat.'); return; }
+    data.kind='debat';
+    data.options=JSON.stringify([a,b]);
+    const ends=debateEndsAt();
+    if(ends) data.endsAt=new Date(ends).toISOString();
+  }
+  try{
+    await cloudApi('POST','publications/documents',{
+      documentId:Appwrite.ID.unique(),
+      data:data,
+      permissions:cloudProfilePermissions(jbUser.$id)
+    });
+    document.getElementById('postText').value='';
+    addActivity(data.kind==='debat'?'Nouveau débat publié':'Nouvelle publication publiée');
+    hideComposer();
+    await cloudSyncPublications();
+  }catch(e){
+    alert(cloudErrorText(e));
+  }
+};
+
+/* supprimer */
+var _deletePost=deletePost;
+deletePost=function(id){
+  const post=posts.find(function(p){ return String(p.id)===String(id); });
+  if(!post||!post.cloud) return _deletePost(id);
+  if(!isMine(post)){ alert('Tu peux supprimer uniquement tes propres publications.'); return; }
+  if(!confirm('Supprimer cette publication et ses commentaires ?')) return;
+  cloudApi('DELETE','publications/documents/'+encodeURIComponent(id)).then(function(){
+    posts=posts.filter(function(p){ return String(p.id)!==String(id); });
+    persistPosts();
+    saved.delete(String(id));
+    saveJSON(SAVED_STORE,[...saved]);
+    addActivity('Une publication a été supprimée.');
+    renderFeed();
+    showSaved();
+  }).catch(function(e){ alert(cloudErrorText(e)); });
+};
+
+/* modifier */
+var _editPost=editPost;
+editPost=function(id){
+  const post=posts.find(function(p){ return String(p.id)===String(id); });
+  if(!post||!post.cloud) return _editPost(id);
+  if(!isMine(post)){ alert('Tu peux modifier uniquement tes propres publications.'); return; }
+  const text=prompt('Modifier le texte de la publication :',post.text||'');
+  if(text===null) return;
+  cloudApi('PATCH','publications/documents/'+encodeURIComponent(id),{data:{texte:text.trim()}}).then(function(){
+    post.text=text.trim();
+    persistPosts();
+    addActivity('Une publication a été modifiée.');
+    renderFeed();
+  }).catch(function(e){ alert(cloudErrorText(e)); });
+};
 
 init();
 </script>
