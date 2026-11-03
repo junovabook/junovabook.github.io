@@ -582,10 +582,8 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px soli
 <main>
 <section id="home">
   <div class="panel">
-    <h2>✨ L'espace JUNOVAS</h2>
+    <h2>✨ L'espace JUNOVABOOK</h2>
     <p>Exprime tes idées, découvre des opinions et échange avec la communauté.</p>
-    <span class="pill">⚡ MÉGAS : <strong id="megasCount">20</strong></span>
-    <span class="pill">🪙 NOVAS : <strong id="rewardCount">0</strong></span>
     <button class="gold full" id="expressionButton" onclick="toggleExpression()" aria-expanded="false">S'EXPRIMER</button>
     <div id="expressionChoices" class="row hidden">
       <button class="primary" onclick="showComposer('publication')">PUBLICATION LIBRE</button>
@@ -880,9 +878,9 @@ function persistPosts(){
 }
 
 function updateBalances(){
-  document.getElementById('megasCount').textContent=megas;
+  const megasEl=document.getElementById('megasCount'); if(megasEl) megasEl.textContent=megas;
   document.getElementById('profileMegas').textContent=megas;
-  document.getElementById('rewardCount').textContent=novas;
+  const rewardEl=document.getElementById('rewardCount'); if(rewardEl) rewardEl.textContent=novas;
   document.getElementById('novasCount').textContent=novas;
   localStorage.setItem(MEGAS_STORE,String(megas));
   localStorage.setItem(NOVAS_STORE,String(novas));
@@ -2966,9 +2964,9 @@ function renderFeed(){
           ${isSaved?'★ Retirer des favoris':'☆ Ajouter aux favoris'}
         </button>
 
-        <button type="button" onclick="editPost('${esc(post.id)}')">✏️ Modifier</button>
+        ${isMine(post)?`<button type="button" onclick="editPost('${esc(post.id)}')">✏️ Modifier</button>
 
-        <button type="button" class="danger" onclick="deletePost('${esc(post.id)}')">Supprimer</button>
+        <button type="button" class="danger" onclick="deletePost('${esc(post.id)}')">Supprimer</button>`:''}
       </div>
 
       <div id="debate-${esc(post.id)}" class="debate-panel hidden">
