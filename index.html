@@ -729,7 +729,6 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px soli
   <input id="profileLink" readonly>
   <button class="full" onclick="copyProfileLink()">Copier mon lien</button>
   <button class="full" onclick="shareProfileLink()">Partager mon lien</button>
-  <p class="notice">Celui qui ouvre ce lien peut t'ajouter à ses contacts. Le nom dans le lien n'est pas vérifié tant qu'il n'y a pas de comptes sur un espace commun.</p>
 
   <hr><h3>PARAMÈTRES → APPARENCE</h3>
   <label for="accentColor">Couleur des LOVES</label><input id="accentColor" type="color" value="#ed4dba">
@@ -1829,9 +1828,9 @@ function avatarFor(userId){
 function avatarHTML(name,authorId){
   const label=String(name||'Membre JUNOVABOOK');
   const mine=authorId?(authorId===myUserId()||(typeof jbUser!=='undefined'&&!!jbUser&&authorId===jbUser.$id)):myNames().indexOf(label)!==-1;
-  const photo=mine?avatarFor(myUserId()):'';
+  const photo=mine?avatarFor(myUserId()):((authorId&&typeof jbAvatarSmall!=='undefined'&&jbAvatarSmall[authorId])||'');
   const who=mine?profileName():label;
-  const attrs=' role="button" tabindex="0" data-viewer="'+(mine?'mine':'member')+'" data-name="'+esc(who)+'" aria-label="Voir la photo de profil de '+esc(who)+'"';
+  const attrs=' role="button" tabindex="0" data-viewer="'+(mine?'mine':'member')+'" data-uid="'+esc(authorId||'')+'" data-name="'+esc(who)+'" aria-label="Voir la photo de profil de '+esc(who)+'"';
   if(photo)return '<span class="avatar avatar-photo"'+attrs+'><img src="'+esc(photo)+'" alt=""></span>';
   const letter=(who.trim().charAt(0)||'M').toUpperCase();
   return '<span class="avatar avatar-photo"'+attrs+'>'+esc(letter)+'</span>';
@@ -2114,10 +2113,11 @@ function closePhotoViewer(){
   if(box)box.remove();
 }
 
-function openPhotoViewer(name,mine){
+function openPhotoViewer(name,mine,uid){
   const id=myUserId();
   const label=String(name||'Membre JUNOVABOOK');
-  const src=mine?(avatarLargeFor(id)||avatarFor(id)):'';
+  const online=(!mine&&uid&&typeof jbAvatarLarge!=='undefined')?(jbAvatarLarge[uid]||jbAvatarSmall[uid]||''):'';
+  const src=mine?(avatarLargeFor(id)||avatarFor(id)):online;
   closePhotoViewer();
   const box=document.createElement('div');
   box.id='photoViewer';
@@ -2136,9 +2136,13 @@ function openPhotoViewer(name,mine){
   document.body.appendChild(box);
 }
 
+function viewerArgs(target){
+  return [target.getAttribute('data-name'),target.getAttribute('data-viewer')==='mine',target.getAttribute('data-uid')||''];
+}
+
 document.addEventListener('click',function(event){
   const target=event.target.closest?event.target.closest('[data-viewer]'):null;
-  if(target)openPhotoViewer(target.getAttribute('data-name'),target.getAttribute('data-viewer')==='mine');
+  if(target)openPhotoViewer.apply(null,viewerArgs(target));
 });
 
 document.addEventListener('keydown',function(event){
@@ -2147,7 +2151,7 @@ document.addEventListener('keydown',function(event){
   const target=event.target.closest?event.target.closest('[data-viewer]'):null;
   if(target){
     event.preventDefault();
-    openPhotoViewer(target.getAttribute('data-name'),target.getAttribute('data-viewer')==='mine');
+    openPhotoViewer.apply(null,viewerArgs(target));
   }
 });
 
@@ -3796,8 +3800,17 @@ window.addEventListener('storage',event=>{
   }
 });
 
-/* ===== BLOC A : publications en ligne ===== */
-var jbJwt=null, jbJwtAt=0, jbSyncing=false;
+/* ===== BLOC CLOUD : publications, loves, votes, commentaires, notifications, photos ===== */
+JB_CLOUD.bucket='medias';
+var jbJwt=null, jbJwtAt=0, jbSyncing=false, jbSyncAgain=false, jbLastSync=0, jbLastSig='';
+var jbPhotoIds={}, jbAvatarSmall={}, jbAvatarLarge={}, jbAvatarFile={}, jbLoveNotified={}, jbPhotoChecked=false;
+
+function jbErr(e){
+  const code=e&&e.code;
+  if(code===409) return 'Action déjà enregistrée. Recharge la page.';
+  if(code===401) return 'Session expirée. Reconnecte-toi dans PROFIL.';
+  return cloudErrorText(e);
+}
 
 async function cloudJwt(){
   if(!jbUser) return null;
@@ -3807,12 +3820,18 @@ async function cloudJwt(){
   return jbJwt;
 }
 
-async function cloudApi(method,path,body){
+async function cloudFetch(url,opts){
   const jwt=await cloudJwt();
   if(!jwt) throw new Error('Non connecté');
-  const res=await fetch(JB_CLOUD.endpoint+'/databases/'+JB_CLOUD.database+'/collections/'+path,{
+  const o=opts||{};
+  const headers=Object.assign({'X-Appwrite-Project':JB_CLOUD.project,'X-Appwrite-JWT':jwt},o.headers||{});
+  return fetch(url,{method:o.method||'GET',headers:headers,body:o.body});
+}
+
+async function cloudApi(method,path,body){
+  const res=await cloudFetch(JB_CLOUD.endpoint+'/databases/'+JB_CLOUD.database+'/collections/'+path,{
     method:method,
-    headers:{'Content-Type':'application/json','X-Appwrite-Project':JB_CLOUD.project,'X-Appwrite-JWT':jwt},
+    headers:{'Content-Type':'application/json'},
     body:body?JSON.stringify(body):undefined
   });
   const data=await res.json().catch(function(){return {};});
@@ -3820,44 +3839,252 @@ async function cloudApi(method,path,body){
   return data;
 }
 
+function cq(list){
+  return list.map(function(q){ return 'queries[]='+encodeURIComponent(q); }).join('&');
+}
+
+async function cloudRows(collection,queries){
+  try{
+    const data=await cloudApi('GET',collection+'/documents?'+cq(queries));
+    return data.documents||[];
+  }catch(e){
+    console.error('Lecture '+collection,e);
+    return null;
+  }
+}
+
+/* arbre des commentaires à partir des lignes de la table */
+function jbBuildTree(rows,names){
+  const map={}, roots=[];
+  rows.forEach(function(r){
+    map[r.$id]={
+      id:r.$id, cloud:true,
+      name:names[r.userId]||'Membre JUNOVABOOK',
+      authorId:r.userId,
+      text:r.texte||'', media:[], children:[],
+      camp:Number.isInteger(r.camp)?r.camp:null,
+      date:new Date(r.$createdAt).toLocaleString()
+    };
+  });
+  rows.forEach(function(r){
+    const node=map[r.$id];
+    const parent=r.parentId&&map[r.parentId];
+    if(parent) parent.children.push(node); else roots.push(node);
+  });
+  return roots;
+}
+
+/* réaffiche le fil sans perdre les commentaires ouverts ni les brouillons */
+function jbRenderKeep(){
+  const open=[].slice.call(document.querySelectorAll('[id^="debate-"]')).filter(function(el){
+    return el.classList.contains('debate-panel')&&!el.classList.contains('hidden');
+  }).map(function(el){return el.id;});
+  const drafts={};
+  [].slice.call(document.querySelectorAll('textarea[id^="comment-text-"]')).forEach(function(t){
+    if(t.value) drafts[t.id]=t.value;
+  });
+  renderFeed();
+  open.forEach(function(id){ const el=document.getElementById(id); if(el) el.classList.remove('hidden'); });
+  Object.keys(drafts).forEach(function(id){ const el=document.getElementById(id); if(el) el.value=drafts[id]; });
+}
+
+/* ---------- photos de profil en ligne ---------- */
+async function cloudAvatarData(fileId){
+  const res=await cloudFetch(JB_CLOUD.endpoint+'/storage/buckets/'+JB_CLOUD.bucket+'/files/'+encodeURIComponent(fileId)+'/view',{method:'GET'});
+  if(!res.ok) throw new Error('Erreur '+res.status);
+  const blob=await res.blob();
+  return await new Promise(function(resolve,reject){
+    const r=new FileReader();
+    r.onload=function(){resolve(r.result);};
+    r.onerror=reject;
+    r.readAsDataURL(blob);
+  });
+}
+
+async function cloudLoadAvatars(userIds){
+  let changed=false;
+  const me=jbUser?jbUser.$id:'';
+  await Promise.all(userIds.map(async function(uid){
+    if(uid===me) return;
+    const fid=jbPhotoIds[uid];
+    if(!fid){
+      if(jbAvatarSmall[uid]){ delete jbAvatarSmall[uid]; delete jbAvatarLarge[uid]; delete jbAvatarFile[uid]; changed=true; }
+      return;
+    }
+    if(jbAvatarFile[uid]===fid) return;
+    try{
+      const d=await cloudAvatarData(fid);
+      jbAvatarSmall[uid]=d; jbAvatarLarge[uid]=d; jbAvatarFile[uid]=fid;
+      changed=true;
+    }catch(e){ console.error('Photo '+uid,e); }
+  }));
+  return changed;
+}
+
+async function cloudUploadMyPhoto(silent){
+  if(!jbUser||!jbProfile) return;
+  const id=myUserId();
+  const src=loadLargeAvatars()[id]||loadAvatars()[id];
+  if(typeof src!=='string'||src.indexOf('data:image/')!==0) return;
+  try{
+    const blob=await (await fetch(src)).blob();
+    const oldId=jbProfile.photoFileId||jbPhotoIds[jbUser.$id]||'';
+    const fileId=Appwrite.ID.unique();
+    const fd=new FormData();
+    fd.append('fileId',fileId);
+    fd.append('file',blob,'avatar.jpg');
+    cloudProfilePermissions(jbUser.$id).forEach(function(p){ fd.append('permissions[]',p); });
+    const res=await cloudFetch(JB_CLOUD.endpoint+'/storage/buckets/'+JB_CLOUD.bucket+'/files',{method:'POST',body:fd});
+    const data=await res.json().catch(function(){return {};});
+    if(!res.ok){const e=new Error(data.message||('Erreur '+res.status));e.code=res.status;throw e;}
+    await cloudApi('PATCH','profiles/documents/'+encodeURIComponent(jbUser.$id),{data:{photoFileId:fileId,photoChangedAt:new Date().toISOString()}});
+    jbProfile.photoFileId=fileId;
+    jbPhotoIds[jbUser.$id]=fileId;
+    if(oldId){
+      cloudFetch(JB_CLOUD.endpoint+'/storage/buckets/'+JB_CLOUD.bucket+'/files/'+encodeURIComponent(oldId),{method:'DELETE'}).catch(function(){});
+    }
+  }catch(e){
+    console.error('Envoi photo',e);
+    if(!silent) alert('Ta photo est bien enregistrée sur cet appareil, mais pas en ligne : '+jbErr(e));
+  }
+}
+
+async function cloudPullMyPhoto(){
+  const fid=jbPhotoIds[jbUser.$id];
+  const id=myUserId();
+  if(!fid||loadAvatars()[id]) return false;
+  try{
+    const d=await cloudAvatarData(fid);
+    const small=loadAvatars(); small[id]=d;
+    localStorage.setItem(avatarStoreKey(),JSON.stringify(small));
+    const big=loadLargeAvatars(); big[id]=d;
+    localStorage.setItem(avatarLargeKey(),JSON.stringify(big));
+    return true;
+  }catch(e){ console.error('Récupération photo',e); return false; }
+}
+
+/* ---------- synchronisation complète ---------- */
 async function cloudSyncPublications(){
-  if(jbSyncing||!jbUser||!jbProfile) return;
+  if(!jbUser||!jbProfile) return;
+  if(jbSyncing){ jbSyncAgain=true; return; }
   jbSyncing=true;
   try{
-    const Q=Appwrite.Query;
-    const list=await cloudApi('GET','publications/documents?queries[]='+encodeURIComponent(Q.orderDesc('$createdAt'))+'&queries[]='+encodeURIComponent(Q.limit(50)));
-    const rows=list.documents||[];
-    const ids=[];
-    rows.forEach(function(r){ if(ids.indexOf(r.userId)===-1) ids.push(r.userId); });
-    const names={};
+    const Q=Appwrite.Query, me=jbUser.$id;
+    const pubs=await cloudRows('publications',[Q.orderDesc('$createdAt'),Q.limit(50)]);
+    if(pubs===null) throw new Error('lecture des publications impossible');
+    const ids=pubs.map(function(r){return r.$id;});
+    let jaimes=[], votes=[], coms=[];
     if(ids.length){
-      const pl=await cloudApi('GET','profiles/documents?queries[]='+encodeURIComponent(Q.equal('$id',ids))+'&queries[]='+encodeURIComponent(Q.limit(100)));
-      (pl.documents||[]).forEach(function(p){ names[p.$id]=p.pseudo; });
+      const res=await Promise.all([
+        cloudRows('jaimes',[Q.equal('publicationId',ids),Q.limit(5000)]),
+        cloudRows('votes',[Q.equal('publicationId',ids),Q.limit(5000)]),
+        cloudRows('commentaires',[Q.equal('publicationId',ids),Q.orderAsc('$createdAt'),Q.limit(1000)])
+      ]);
+      jaimes=res[0]||[]; votes=res[1]||[]; coms=res[2]||[];
     }
-    const cloudPosts=rows.map(function(r){
+    const notifs=(await cloudRows('notifications',[Q.equal('userId',[me]),Q.orderDesc('$createdAt'),Q.limit(50)]))||[];
+
+    /* noms et photos des membres concernés */
+    const want=[me];
+    function need(x){ if(x&&want.indexOf(x)===-1) want.push(x); }
+    pubs.forEach(function(r){need(r.userId);});
+    coms.forEach(function(r){need(r.userId);});
+    notifs.forEach(function(r){need(r.actorId);});
+    const names={};
+    for(let i=0;i<want.length;i+=100){
+      const rows=(await cloudRows('profiles',[Q.equal('$id',want.slice(i,i+100)),Q.limit(100)]))||[];
+      rows.forEach(function(p){ names[p.$id]=p.pseudo; jbPhotoIds[p.$id]=p.photoFileId||''; });
+    }
+    if(jbPhotoIds[me]!==undefined) jbProfile.photoFileId=jbPhotoIds[me];
+
+    /* décomptes */
+    const likeCount={}, myLike={}, voteCount={}, myVote={}, comByPost={}, events={};
+    function addEvent(pubId,date){ (events[pubId]=events[pubId]||[]).push(new Date(date).getTime()); }
+    jaimes.forEach(function(r){
+      likeCount[r.publicationId]=(likeCount[r.publicationId]||0)+1;
+      if(r.userId===me) myLike[r.publicationId]=r.$id;
+    });
+    votes.forEach(function(r){
+      const c=Number(r.choix);
+      if(c!==0&&c!==1) return;
+      (voteCount[r.publicationId]=voteCount[r.publicationId]||[0,0])[c]++;
+      if(r.userId===me) myVote[r.publicationId]={id:r.$id,choix:c};
+      addEvent(r.publicationId,r.$createdAt);
+    });
+    coms.forEach(function(r){
+      (comByPost[r.publicationId]=comByPost[r.publicationId]||[]).push(r);
+      addEvent(r.publicationId,r.$createdAt);
+    });
+
+    const cloudPosts=pubs.map(function(r){
       let opts=null; try{ opts=JSON.parse(r.options||'null'); }catch(e){}
       const debat=r.kind==='debat'&&Array.isArray(opts)&&opts.length===2;
-      const old=posts.find(function(p){ return String(p.id)===String(r.$id); });
-      return {
+      const post={
         id:r.$id, cloud:true,
         name:names[r.userId]||'Membre JUNOVABOOK',
         authorId:r.userId,
         text:r.texte||'', media:[],
         date:r.createdAt||r.$createdAt,
-        loves:old?old.loves:0,
-        comments:old&&Array.isArray(old.comments)?old.comments:[],
+        loves:likeCount[r.$id]||0,
+        myLoveId:myLike[r.$id]||null,
+        comments:jbBuildTree(comByPost[r.$id]||[],names),
         type:debat?'debat':'publication',
-        poll:debat?(old&&old.poll?old.poll:{options:opts,votes:[0,0],voted:false,endsAt:r.endsAt?new Date(r.endsAt).getTime():null,events:[]}):null
+        poll:null
+      };
+      if(debat){
+        const mv=myVote[r.$id];
+        post.poll={
+          options:opts,
+          votes:voteCount[r.$id]||[0,0],
+          voted:!!mv,
+          endsAt:r.endsAt?new Date(r.endsAt).getTime():null,
+          events:(events[r.$id]||[]).slice(-200)
+        };
+        if(mv){ post.poll.votedIndex=mv.choix; post.myVoteId=mv.id; }
+      }
+      return post;
+    });
+
+    const cloudActs=notifs.map(function(r){
+      return {
+        id:'n_'+r.$id, cloud:true, rowId:r.$id,
+        name:names[r.actorId]||'Membre JUNOVABOOK',
+        authorId:r.actorId,
+        text:r.texte||'',
+        time:new Date(r.$createdAt).toLocaleString(),
+        read:!!r.lu
       };
     });
-    posts=posts.filter(function(p){ return !p.cloud; }).concat(cloudPosts);
-    posts.sort(function(a,b){ return new Date(b.date)-new Date(a.date); });
-    persistPosts();
-    renderFeed();
+
+    const sig=JSON.stringify([cloudPosts,cloudActs]);
+    if(sig!==jbLastSig){
+      jbLastSig=sig;
+      posts=posts.filter(function(p){ return !p.cloud; }).concat(cloudPosts);
+      posts.sort(function(a,b){ return new Date(b.date)-new Date(a.date); });
+      persistPosts();
+      activities=cloudActs.concat(activities.filter(function(a){ return !a.cloud; })).slice(0,150);
+      saveJSON(ACTIVITY_STORE,activities);
+      jbRenderKeep();
+      renderActivities();
+    }
+    jbLastSync=Date.now();
+
+    /* photos : la mienne (récupérer ou envoyer), puis celles des autres */
+    if(!jbPhotoChecked){
+      jbPhotoChecked=true;
+      if(jbPhotoIds[me]&&!loadAvatars()[myUserId()]){
+        if(await cloudPullMyPhoto()){ renderProfilePhoto(); jbRenderKeep(); }
+      }else if(!jbPhotoIds[me]&&loadAvatars()[myUserId()]){
+        await cloudUploadMyPhoto(true);
+      }
+    }
+    const uids=want.filter(function(x){return x!==me;});
+    if(await cloudLoadAvatars(uids)){ jbRenderKeep(); renderActivities(); }
   }catch(e){
-    console.error('Sync publications',e);
+    console.error('Synchronisation',e);
   }finally{
     jbSyncing=false;
+    if(jbSyncAgain){ jbSyncAgain=false; cloudSyncPublications(); }
   }
 }
 
@@ -3867,18 +4094,74 @@ renderCloudAccount=function(){
   _renderCloudAccount();
   if(jbUser&&jbProfile){ cloudSyncPublications(); }
   else if(!jbUser){
+    jbPhotoChecked=false; jbLastSig='';
     posts=posts.filter(function(p){ return !p.cloud; });
+    activities=activities.filter(function(a){ return !a.cloud; });
     renderFeed();
+    renderActivities();
   }
 };
 
-/* mes publications en ligne m'appartiennent */
+/* actualisation automatique */
+function jbAutoRefresh(){
+  if(!jbUser||!jbProfile||document.hidden||jbSyncing) return;
+  const ae=document.activeElement;
+  if(ae&&(ae.tagName==='TEXTAREA'||ae.tagName==='INPUT')) return;
+  if(recorder||commentRecorder) return;
+  const drafts=[].slice.call(document.querySelectorAll('textarea[id^="comment-text-"]')).some(function(t){return t.value.trim();});
+  if(drafts||document.getElementById('photoViewer')) return;
+  cloudSyncPublications();
+}
+setInterval(jbAutoRefresh,45000);
+document.addEventListener('visibilitychange',function(){
+  if(!document.hidden&&Date.now()-jbLastSync>20000) jbAutoRefresh();
+});
+
+/* ---------- notifications envoyées au propriétaire ---------- */
+function jbNotifyOwner(post,verb,joiner){
+  if(!jbUser||!post||!post.authorId||post.authorId===jbUser.$id) return;
+  const kind=post.poll?'ton débat':'ta publication';
+  const text=(verb+(joiner===undefined?' sur ':joiner)+kind+' « '+postTitle(post)+' ».').slice(0,300);
+  const owner=post.authorId;
+  cloudApi('POST','notifications/documents',{
+    documentId:Appwrite.ID.unique(),
+    data:{userId:owner,actorId:jbUser.$id,kind:'activite',publicationId:String(post.id),texte:text,lu:false},
+    permissions:[
+      Appwrite.Permission.read(Appwrite.Role.user(owner)),
+      Appwrite.Permission.update(Appwrite.Role.user(owner)),
+      Appwrite.Permission.delete(Appwrite.Role.user(owner))
+    ]
+  }).catch(function(e){ console.error('Notification',e); });
+}
+
+var _markActivitiesRead=markActivitiesRead;
+markActivitiesRead=function(){
+  const unread=activities.filter(function(a){ return a.cloud&&!a.read&&a.rowId; });
+  _markActivitiesRead();
+  unread.forEach(function(a){
+    cloudApi('PATCH','notifications/documents/'+encodeURIComponent(a.rowId),{data:{lu:true}}).catch(function(e){ console.error(e); });
+  });
+};
+
+var _clearActivities=clearActivities;
+clearActivities=function(){
+  const mineActs=activities.filter(function(a){ return a.cloud&&a.rowId; });
+  const before=activities.length;
+  _clearActivities();
+  if(before&&!activities.length){
+    mineActs.forEach(function(a){
+      cloudApi('DELETE','notifications/documents/'+encodeURIComponent(a.rowId)).catch(function(e){ console.error(e); });
+    });
+  }
+};
+
+/* ---------- mes publications en ligne m'appartiennent ---------- */
 var _isMine=isMine;
 isMine=function(item){
   return _isMine(item)||!!(item&&jbUser&&item.authorId&&item.authorId===jbUser.$id);
 };
 
-/* publier en ligne (texte et débats sans média) */
+/* ---------- publier ---------- */
 var _publish=publish;
 publish=async function(){
   const files=[...document.getElementById('postMedia').files];
@@ -3906,11 +4189,11 @@ publish=async function(){
     hideComposer();
     await cloudSyncPublications();
   }catch(e){
-    alert(cloudErrorText(e));
+    alert(jbErr(e));
   }
 };
 
-/* supprimer */
+/* ---------- supprimer ---------- */
 var _deletePost=deletePost;
 deletePost=function(id){
   const post=posts.find(function(p){ return String(p.id)===String(id); });
@@ -3923,12 +4206,12 @@ deletePost=function(id){
     saved.delete(String(id));
     saveJSON(SAVED_STORE,[...saved]);
     addActivity('Une publication a été supprimée.');
-    renderFeed();
+    jbRenderKeep();
     showSaved();
-  }).catch(function(e){ alert(cloudErrorText(e)); });
+  }).catch(function(e){ alert(jbErr(e)); });
 };
 
-/* modifier */
+/* ---------- modifier ---------- */
 var _editPost=editPost;
 editPost=function(id){
   const post=posts.find(function(p){ return String(p.id)===String(id); });
@@ -3940,8 +4223,208 @@ editPost=function(id){
     post.text=text.trim();
     persistPosts();
     addActivity('Une publication a été modifiée.');
-    renderFeed();
-  }).catch(function(e){ alert(cloudErrorText(e)); });
+    jbRenderKeep();
+  }).catch(function(e){ alert(jbErr(e)); });
+};
+
+/* ---------- LOVES partagés ---------- */
+var _lovePost=lovePost;
+lovePost=function(id){
+  const post=posts.find(function(p){ return String(p.id)===String(id); });
+  if(!post||!post.cloud) return _lovePost(id);
+  if(!jbUser) return;
+  if(post.loveBusy) return;
+  post.loveBusy=true;
+  if(post.myLoveId&&post.myLoveId!=='pending'){
+    const rowId=post.myLoveId;
+    post.myLoveId=null;
+    post.loves=Math.max(0,(Number(post.loves)||0)-1);
+    jbRenderKeep();
+    cloudApi('DELETE','jaimes/documents/'+encodeURIComponent(rowId)).catch(function(e){
+      post.myLoveId=rowId;
+      post.loves=(Number(post.loves)||0)+1;
+      jbRenderKeep();
+      alert(jbErr(e));
+    }).then(function(){ post.loveBusy=false; });
+  }else{
+    post.loves=(Number(post.loves)||0)+1;
+    post.myLoveId='pending';
+    jbRenderKeep();
+    cloudApi('POST','jaimes/documents',{
+      documentId:Appwrite.ID.unique(),
+      data:{publicationId:String(post.id),userId:jbUser.$id},
+      permissions:cloudProfilePermissions(jbUser.$id)
+    }).then(function(row){
+      post.myLoveId=row.$id;
+      if(!jbLoveNotified[post.id]){ jbLoveNotified[post.id]=true; jbNotifyOwner(post,'a aimé',' '); }
+    }).catch(function(e){
+      post.myLoveId=null;
+      post.loves=Math.max(0,(Number(post.loves)||0)-1);
+      jbRenderKeep();
+      alert(jbErr(e));
+    }).then(function(){ post.loveBusy=false; });
+  }
+};
+
+/* ---------- VOTES partagés ---------- */
+function jbMyComments(list,out){
+  (list||[]).forEach(function(c){
+    if(isMine(c)) out.push(c);
+    jbMyComments(c.children,out);
+  });
+  return out;
+}
+
+var _votePoll=votePoll;
+votePoll=async function(id,index){
+  const post=posts.find(function(p){ return String(p.id)===String(id); });
+  if(!post||!post.cloud||!post.poll) return _votePoll(id,index);
+  const poll=post.poll;
+  if(index<0||index>1) return;
+  if(isDebateClosed(poll)){ alert('Ce débat est terminé : on ne peut plus voter.'); return; }
+  if(post.voteBusy) return;
+  const hadVote=!!poll.voted;
+  const oldIndex=Number.isInteger(poll.votedIndex)?poll.votedIndex:null;
+  if(hadVote&&oldIndex===index) return;
+  post.voteBusy=true;
+  try{
+    if(hadVote&&post.myVoteId){
+      await cloudApi('PATCH','votes/documents/'+encodeURIComponent(post.myVoteId),{data:{choix:index}});
+    }else{
+      const row=await cloudApi('POST','votes/documents',{
+        documentId:Appwrite.ID.unique(),
+        data:{publicationId:String(post.id),userId:jbUser.$id,choix:index},
+        permissions:cloudProfilePermissions(jbUser.$id)
+      });
+      post.myVoteId=row.$id;
+    }
+    poll.votes=poll.votes||[0,0];
+    if(hadVote&&oldIndex!==null) poll.votes[oldIndex]=Math.max(0,(Number(poll.votes[oldIndex])||0)-1);
+    poll.votes[index]=(Number(poll.votes[index])||0)+1;
+    poll.voted=true;
+    poll.votedIndex=index;
+    /* mes avis déjà publiés suivent mon nouveau camp */
+    if(hadVote){
+      const mine=jbMyComments(post.comments,[]).filter(function(c){ return Number.isInteger(c.camp)&&c.camp!==index; });
+      await Promise.all(mine.map(function(c){
+        return cloudApi('PATCH','commentaires/documents/'+encodeURIComponent(c.id),{data:{camp:index}}).then(function(){ c.camp=index; });
+      }));
+    }
+    noteDebateActivity(post);
+    persistPosts();
+    const label=(poll.options||[])[index]||'';
+    if(hadVote){
+      addActivity('Ton vote au débat a été modifié : '+label+'.');
+      jbNotifyOwner(post,'a changé son vote pour '+label);
+    }else{
+      addActivity('Ton vote au débat a été enregistré.');
+      jbNotifyOwner(post,'a voté '+label);
+    }
+    jbRenderKeep();
+  }catch(e){
+    alert(jbErr(e));
+  }finally{
+    post.voteBusy=false;
+  }
+};
+
+/* ---------- COMMENTAIRES partagés ---------- */
+var _addComment=addComment;
+addComment=async function(id){
+  const post=posts.find(function(p){ return String(p.id)===String(id); });
+  if(!post||!post.cloud) return _addComment(id);
+  const input=document.getElementById('comment-text-'+id);
+  if(!input) return;
+  const text=input.value.trim();
+  if(!text){ alert('Écris un commentaire avant de l’envoyer.'); return; }
+  if(!canGiveAvis(post)) return;
+  const data={publicationId:String(post.id),userId:jbUser.$id,texte:text,parentId:''};
+  const camp=avisCamp(post);
+  if(camp!==null) data.camp=camp;
+  try{
+    await cloudApi('POST','commentaires/documents',{
+      documentId:Appwrite.ID.unique(),
+      data:data,
+      permissions:cloudProfilePermissions(jbUser.$id)
+    });
+    input.value='';
+    addActivity('Un nouveau commentaire a été publié.');
+    jbNotifyOwner(post,'a donné son avis');
+    await cloudSyncPublications();
+    const panel=document.getElementById('debate-'+id);
+    if(panel) panel.classList.remove('hidden');
+  }catch(e){
+    alert(jbErr(e));
+  }
+};
+
+var _replyToComment=replyToComment;
+replyToComment=async function(postId,commentId){
+  const post=posts.find(function(p){ return String(p.id)===String(postId); });
+  if(!post||!post.cloud) return _replyToComment(postId,commentId);
+  const comment=findCommentById(post.comments,commentId);
+  if(!comment) return;
+  if(!canGiveAvis(post)) return;
+  const text=prompt('Écris ta réponse à ce commentaire :');
+  if(text===null||!text.trim()) return;
+  const data={publicationId:String(post.id),userId:jbUser.$id,texte:text.trim(),parentId:String(commentId)};
+  const camp=avisCamp(post);
+  if(camp!==null) data.camp=camp;
+  try{
+    await cloudApi('POST','commentaires/documents',{
+      documentId:Appwrite.ID.unique(),
+      data:data,
+      permissions:cloudProfilePermissions(jbUser.$id)
+    });
+    addActivity('Une réponse à un commentaire a été publiée.');
+    jbNotifyOwner(post,'a répondu');
+    await cloudSyncPublications();
+    const panel=document.getElementById('debate-'+postId);
+    if(panel) panel.classList.remove('hidden');
+  }catch(e){
+    alert(jbErr(e));
+  }
+};
+
+/* audio : pas encore en ligne pour les publications partagées */
+var _openAudioComment=openAudioComment;
+openAudioComment=function(postId){
+  const post=posts.find(function(p){ return String(p.id)===String(postId); });
+  if(post&&post.cloud){ alert('Les commentaires audio en ligne arrivent bientôt. Écris ton commentaire en texte pour le moment.'); return; }
+  return _openAudioComment(postId);
+};
+var _startAudioReply=startAudioReply;
+startAudioReply=function(postId,commentId){
+  const post=posts.find(function(p){ return String(p.id)===String(postId); });
+  if(post&&post.cloud){ alert('Les réponses audio en ligne arrivent bientôt. Réponds en texte pour le moment.'); return; }
+  return _startAudioReply(postId,commentId);
+};
+
+/* ---------- photo de profil : envoi en ligne ---------- */
+var _chooseProfilePhoto=chooseProfilePhoto;
+chooseProfilePhoto=async function(input){
+  const id=myUserId();
+  const before=loadAvatars()[id]||'';
+  await _chooseProfilePhoto(input);
+  const after=loadAvatars()[id]||'';
+  if(after&&after!==before&&jbUser&&jbProfile) await cloudUploadMyPhoto(false);
+};
+
+var _removeProfilePhoto=removeProfilePhoto;
+removeProfilePhoto=async function(){
+  const id=myUserId();
+  const had=!!loadAvatars()[id];
+  _removeProfilePhoto();
+  if(!had||loadAvatars()[id]||!jbUser||!jbProfile) return;
+  const fid=jbProfile.photoFileId||jbPhotoIds[jbUser.$id];
+  try{
+    if(fid){
+      await cloudFetch(JB_CLOUD.endpoint+'/storage/buckets/'+JB_CLOUD.bucket+'/files/'+encodeURIComponent(fid),{method:'DELETE'}).catch(function(){});
+    }
+    await cloudApi('PATCH','profiles/documents/'+encodeURIComponent(jbUser.$id),{data:{photoFileId:''}});
+    jbProfile.photoFileId='';
+    jbPhotoIds[jbUser.$id]='';
+  }catch(e){ console.error('Retrait photo',e); }
 };
 
 init();
