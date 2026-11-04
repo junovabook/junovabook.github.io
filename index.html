@@ -550,6 +550,15 @@ body .link-card .avatar{width:48px;height:48px;flex-basis:48px;font-size:20px;ma
 .photo-viewer img{max-width:92vw;max-height:76vh;border-radius:14px;object-fit:contain;background:#1a1330}
 .photo-viewer-letter{width:min(70vw,280px);height:min(70vw,280px);border-radius:50%;background:#7c3aed;color:#fff;display:grid;place-items:center;font-size:110px;font-weight:bold}
 .photo-viewer-name{color:#fff;font-weight:bold;font-size:17px;margin:0}
+.media-preview,.preview-grid img{cursor:zoom-in}
+.media-loading{display:grid;place-items:center;min-height:120px;border-radius:10px;background:#100d20;color:#c9bde5;font-size:13px;margin-top:8px}
+.img-viewer{position:fixed;inset:0;z-index:70;background:rgba(5,3,14,.97);display:flex;align-items:center;justify-content:center;touch-action:pinch-zoom}
+.img-viewer img{max-width:100vw;max-height:88vh;object-fit:contain;user-select:none;-webkit-user-drag:none}
+.img-viewer-close{position:absolute;top:14px;right:14px;width:44px;height:44px;margin:0;padding:0;border-radius:50%;background:#49366b;font-size:20px;z-index:2}
+.img-viewer-count{position:absolute;top:26px;left:16px;color:#fff;font-weight:bold;font-size:15px;z-index:2}
+.img-viewer-nav{position:absolute;top:50%;transform:translateY(-50%);width:44px;height:64px;margin:0;padding:0;border-radius:12px;background:rgba(73,54,107,.8);font-size:34px;line-height:1;z-index:2}
+.img-viewer-nav.prev{left:6px}
+.img-viewer-nav.next{right:6px}
 .photo-viewer-close{position:absolute;top:14px;right:14px;width:44px;height:44px;margin:0;padding:0;border-radius:50%;background:#49366b;font-size:20px}
 
 /* ===== Invitations ===== */
@@ -601,7 +610,6 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px soli
     <textarea id="postText" maxlength="5000" placeholder="Exprime tes idées ici..."></textarea>
     <label for="postMedia">Ajouter jusqu'à 4 photos ou une vidéo</label>
     <input id="postMedia" type="file" accept="image/*,video/*" multiple>
-    <p class="file-note">Choisis une vidéo ou jusqu’à quatre photos. Les photos de plus de 2,5 Mo sont réduites automatiquement. Audio : 0,5 Mo pour un enregistrement au micro ; un fichier audio importé peut aller jusqu’à 5 Mo, et au-delà de 2,5 Mo tu choisis la partie à garder.</p>
     <div id="mediaPendingPreview" class="preview-grid"></div>
     <div id="pollFields" class="hidden">
       <label for="optionA">Premier choix</label><input id="optionA" maxlength="100" placeholder="POUR">
@@ -3963,6 +3971,78 @@ async function cloudPullMyPhoto(){
   }catch(e){ console.error('Récupération photo',e); return false; }
 }
 
+/* ---------- photos et vidéos des publications ---------- */
+var jbMediaCache={};
+
+function jbMediaItems(raw){
+  let arr=[];
+  try{ arr=JSON.parse(raw||'[]'); }catch(e){ arr=[]; }
+  if(!Array.isArray(arr)) return [];
+  return arr.filter(function(x){ return Array.isArray(x)&&x[0]; }).slice(0,4).map(function(x){
+    const fid=String(x[0]);
+    const cached=jbMediaCache[fid];
+    return {
+      type:x[1]==='video'?'video':'image',
+      fileId:fid,
+      data:cached&&cached!=='error'?cached:'',
+      failed:cached==='error'
+    };
+  });
+}
+
+async function cloudLoadMedia(){
+  const need=[];
+  posts.forEach(function(p){
+    if(!p.cloud) return;
+    (p.media||[]).forEach(function(m){
+      if(m.fileId&&!jbMediaCache[m.fileId]&&need.indexOf(m.fileId)===-1) need.push(m.fileId);
+    });
+  });
+  if(!need.length) return false;
+  await Promise.all(need.map(async function(fid){
+    try{ jbMediaCache[fid]=await cloudAvatarData(fid); }
+    catch(e){ jbMediaCache[fid]='error'; console.error('Média '+fid,e); }
+  }));
+  posts.forEach(function(p){
+    if(!p.cloud) return;
+    (p.media||[]).forEach(function(m){
+      const c=m.fileId&&jbMediaCache[m.fileId];
+      if(c&&c!=='error'){ m.data=c; m.failed=false; }
+      else if(c==='error'){ m.failed=true; }
+    });
+  });
+  return true;
+}
+
+async function cloudUploadFile(file,name){
+  const fileId=Appwrite.ID.unique();
+  const fd=new FormData();
+  fd.append('fileId',fileId);
+  fd.append('file',file,name||'media');
+  cloudProfilePermissions(jbUser.$id).forEach(function(p){ fd.append('permissions[]',p); });
+  const res=await cloudFetch(JB_CLOUD.endpoint+'/storage/buckets/'+JB_CLOUD.bucket+'/files',{method:'POST',body:fd});
+  const data=await res.json().catch(function(){return {};});
+  if(!res.ok){const e=new Error(data.message||('Erreur '+res.status));e.code=res.status;throw e;}
+  return fileId;
+}
+
+function cloudDeleteFile(fileId){
+  return cloudFetch(JB_CLOUD.endpoint+'/storage/buckets/'+JB_CLOUD.bucket+'/files/'+encodeURIComponent(fileId),{method:'DELETE'}).catch(function(){});
+}
+
+var _mediaHTML=mediaHTML;
+mediaHTML=function(m){
+  if(m&&m.fileId&&!m.data){
+    return '<div class="media-loading">'+(m.failed?'Média indisponible':'Chargement du média…')+'</div>';
+  }
+  return _mediaHTML(m);
+};
+
+/* les publications en ligne ne sont pas gardées sur l'appareil */
+persistPosts=function(){
+  return saveJSON(STORE,posts.filter(function(p){ return !p.cloud; }));
+};
+
 /* ---------- synchronisation complète ---------- */
 async function cloudSyncPublications(){
   if(!jbUser||!jbProfile) return;
@@ -4023,7 +4103,7 @@ async function cloudSyncPublications(){
         id:r.$id, cloud:true,
         name:names[r.userId]||'Membre JUNOVABOOK',
         authorId:r.userId,
-        text:r.texte||'', media:[],
+        text:(r.texte||'').trim(), media:jbMediaItems(r.mediaIds),
         date:r.createdAt||r.$createdAt,
         loves:likeCount[r.$id]||0,
         myLoveId:myLike[r.$id]||null,
@@ -4045,18 +4125,21 @@ async function cloudSyncPublications(){
       return post;
     });
 
+    const seenAt=jbLS('junovabook_notif_seen_'+me);
+    const clearedAt=jbLS('junovabook_notif_clear_'+me);
     const cloudActs=notifs.map(function(r){
+      const ts=new Date(r.$createdAt).getTime();
       return {
-        id:'n_'+r.$id, cloud:true, rowId:r.$id,
+        id:'n_'+r.$id, cloud:true, rowId:r.$id, ts:ts,
         name:names[r.actorId]||'Membre JUNOVABOOK',
         authorId:r.actorId,
         text:r.texte||'',
         time:new Date(r.$createdAt).toLocaleString(),
-        read:!!r.lu
+        read:ts<=seenAt
       };
-    });
+    }).filter(function(a){ return a.ts>clearedAt; });
 
-    const sig=JSON.stringify([cloudPosts,cloudActs]);
+    const sig=JSON.stringify([cloudPosts.map(function(p){ return Object.assign({},p,{media:p.media.map(function(m){ return [m.fileId,m.type]; })}); }),cloudActs]);
     if(sig!==jbLastSig){
       jbLastSig=sig;
       posts=posts.filter(function(p){ return !p.cloud; }).concat(cloudPosts);
@@ -4068,6 +4151,7 @@ async function cloudSyncPublications(){
       renderActivities();
     }
     jbLastSync=Date.now();
+    if(await cloudLoadMedia()) jbRenderKeep();
 
     /* photos : la mienne (récupérer ou envoyer), puis celles des autres */
     if(!jbPhotoChecked){
@@ -4126,32 +4210,31 @@ function jbNotifyOwner(post,verb,joiner){
   cloudApi('POST','notifications/documents',{
     documentId:Appwrite.ID.unique(),
     data:{userId:owner,actorId:jbUser.$id,kind:'activite',publicationId:String(post.id),texte:text,lu:false},
-    permissions:[
-      Appwrite.Permission.read(Appwrite.Role.user(owner)),
-      Appwrite.Permission.update(Appwrite.Role.user(owner)),
-      Appwrite.Permission.delete(Appwrite.Role.user(owner))
-    ]
+    /* Appwrite n'accepte que des rôles que l'expéditeur possède lui-même */
+    permissions:cloudProfilePermissions(jbUser.$id)
   }).catch(function(e){ console.error('Notification',e); });
+}
+
+function jbLS(key){ try{ return Number(localStorage.getItem(key))||0; }catch(e){ return 0; } }
+function jbMaxNotifTs(){
+  return activities.reduce(function(m,a){ return a.cloud&&a.ts>m?a.ts:m; },0);
 }
 
 var _markActivitiesRead=markActivitiesRead;
 markActivitiesRead=function(){
-  const unread=activities.filter(function(a){ return a.cloud&&!a.read&&a.rowId; });
+  if(jbUser){
+    try{ localStorage.setItem('junovabook_notif_seen_'+jbUser.$id,String(Math.max(Date.now(),jbMaxNotifTs()))); }catch(e){}
+  }
   _markActivitiesRead();
-  unread.forEach(function(a){
-    cloudApi('PATCH','notifications/documents/'+encodeURIComponent(a.rowId),{data:{lu:true}}).catch(function(e){ console.error(e); });
-  });
 };
 
 var _clearActivities=clearActivities;
 clearActivities=function(){
-  const mineActs=activities.filter(function(a){ return a.cloud&&a.rowId; });
   const before=activities.length;
+  const maxTs=jbMaxNotifTs();
   _clearActivities();
-  if(before&&!activities.length){
-    mineActs.forEach(function(a){
-      cloudApi('DELETE','notifications/documents/'+encodeURIComponent(a.rowId)).catch(function(e){ console.error(e); });
-    });
+  if(before&&!activities.length&&jbUser){
+    try{ localStorage.setItem('junovabook_notif_clear_'+jbUser.$id,String(Math.max(Date.now(),maxTs))); }catch(e){}
   }
 };
 
@@ -4162,13 +4245,18 @@ isMine=function(item){
 };
 
 /* ---------- publier ---------- */
+var jbPublishing=false;
 var _publish=publish;
 publish=async function(){
+  if(!(jbUser&&jbProfile)||composerMode==='voice') return _publish();
+  if(jbPublishing) return;
   const files=[...document.getElementById('postMedia').files];
-  if(!(jbUser&&jbProfile)||files.length||composerMode==='voice') return _publish();
   const text=document.getElementById('postText').value.trim();
-  if(!text){ alert('Écris un message ou ajoute un média.'); return; }
-  const data={userId:jbUser.$id,texte:text,createdAt:new Date().toISOString(),kind:'post'};
+  if(!text&&!files.length){ alert('Écris un message ou ajoute un média.'); return; }
+  if(files.length>4){ alert('Choisis au maximum quatre fichiers.'); return; }
+  if(files.length>1&&files.some(function(f){ return !f.type.startsWith('image/'); })){ alert('Pour une vidéo, sélectionne un seul fichier.'); return; }
+  if(files.some(function(f){ return f.size>2.5*1024*1024; })){ alert('Le fichier dépasse 2,5 Mo.'); return; }
+  const data={userId:jbUser.$id,texte:text||' ',createdAt:new Date().toISOString(),kind:'post'};
   if(composerMode==='debat'){
     const a=document.getElementById('optionA').value.trim();
     const b=document.getElementById('optionB').value.trim();
@@ -4178,18 +4266,30 @@ publish=async function(){
     const ends=debateEndsAt();
     if(ends) data.endsAt=new Date(ends).toISOString();
   }
+  jbPublishing=true;
+  const uploaded=[];
   try{
+    for(const f of files){
+      const fid=await cloudUploadFile(f,f.name);
+      uploaded.push([fid,f.type.startsWith('video/')?'video':'image']);
+    }
+    if(uploaded.length) data.mediaIds=JSON.stringify(uploaded);
     await cloudApi('POST','publications/documents',{
       documentId:Appwrite.ID.unique(),
       data:data,
       permissions:cloudProfilePermissions(jbUser.$id)
     });
     document.getElementById('postText').value='';
+    document.getElementById('postMedia').value='';
+    document.getElementById('mediaPendingPreview').innerHTML='';
     addActivity(data.kind==='debat'?'Nouveau débat publié':'Nouvelle publication publiée');
     hideComposer();
     await cloudSyncPublications();
   }catch(e){
+    uploaded.forEach(function(u){ cloudDeleteFile(u[0]); });
     alert(jbErr(e));
+  }finally{
+    jbPublishing=false;
   }
 };
 
@@ -4201,6 +4301,7 @@ deletePost=function(id){
   if(!isMine(post)){ alert('Tu peux supprimer uniquement tes propres publications.'); return; }
   if(!confirm('Supprimer cette publication et ses commentaires ?')) return;
   cloudApi('DELETE','publications/documents/'+encodeURIComponent(id)).then(function(){
+    (post.media||[]).forEach(function(m){ if(m.fileId) cloudDeleteFile(m.fileId); });
     posts=posts.filter(function(p){ return String(p.id)!==String(id); });
     persistPosts();
     saved.delete(String(id));
@@ -4399,6 +4500,97 @@ startAudioReply=function(postId,commentId){
   if(post&&post.cloud){ alert('Les réponses audio en ligne arrivent bientôt. Réponds en texte pour le moment.'); return; }
   return _startAudioReply(postId,commentId);
 };
+
+/* ---------- diffusion : notifie le propriétaire ---------- */
+sharePost=async function(id){
+  const post=posts.find(function(p){ return String(p.id)===String(id); });
+  if(!post) return;
+  const text=(post.name||'Membre JUNOVABOOK')+': '+(post.text||'Découvre cette publication sur JUNOVABOOK');
+  const shareData={title:'JUNOVABOOK',text:text,url:location.href};
+  try{
+    if(navigator.share){
+      await navigator.share(shareData);
+    }else if(navigator.clipboard&&navigator.clipboard.writeText){
+      await navigator.clipboard.writeText(text+' '+location.href);
+      alert('Texte copié. Tu peux le partager sur WhatsApp.');
+    }else{
+      prompt('Copie ce texte pour le partager :',text+' '+location.href);
+    }
+    if(post.cloud) jbNotifyOwner(post,'a diffusé',' ');
+  }catch(e){
+    if(e.name!=='AbortError') alert('Le partage a été annulé ou n’est pas disponible.');
+  }
+};
+
+/* ---------- visionneuse de photos, une par une ---------- */
+var jbImgs=[], jbImgIndex=0;
+
+function jbCloseImgViewer(){
+  const el=document.getElementById('imgViewer');
+  if(el) el.remove();
+}
+
+function jbShowImg(i){
+  const box=document.getElementById('imgViewer');
+  if(!box||!jbImgs.length) return;
+  jbImgIndex=(i+jbImgs.length)%jbImgs.length;
+  box.querySelector('img').src=jbImgs[jbImgIndex];
+  const c=box.querySelector('.img-viewer-count');
+  if(c) c.textContent=(jbImgIndex+1)+' / '+jbImgs.length;
+}
+
+function jbOpenImgViewer(list,index){
+  jbCloseImgViewer();
+  jbImgs=list;
+  const multi=list.length>1;
+  const box=document.createElement('div');
+  box.id='imgViewer';
+  box.className='img-viewer';
+  box.setAttribute('role','dialog');
+  box.setAttribute('aria-label','Photos');
+  box.innerHTML='<button type="button" class="img-viewer-close" data-act="close" aria-label="Fermer">✕</button>'
+    +(multi?'<span class="img-viewer-count"></span>'
+      +'<button type="button" class="img-viewer-nav prev" data-act="prev" aria-label="Photo précédente">‹</button>'
+      +'<button type="button" class="img-viewer-nav next" data-act="next" aria-label="Photo suivante">›</button>':'')
+    +'<img alt="Photo">';
+  let startX=0,startY=0,tracking=false;
+  box.addEventListener('click',function(event){
+    const act=event.target.getAttribute&&event.target.getAttribute('data-act');
+    if(act==='close'||event.target===box){ jbCloseImgViewer(); return; }
+    if(act==='prev') jbShowImg(jbImgIndex-1);
+    if(act==='next') jbShowImg(jbImgIndex+1);
+  });
+  box.addEventListener('touchstart',function(event){
+    if(event.touches.length===1){ tracking=true; startX=event.touches[0].clientX; startY=event.touches[0].clientY; }
+    else tracking=false;
+  },{passive:true});
+  box.addEventListener('touchend',function(event){
+    if(!tracking||!multi||!event.changedTouches.length) return;
+    tracking=false;
+    const dx=event.changedTouches[0].clientX-startX;
+    const dy=event.changedTouches[0].clientY-startY;
+    if(Math.abs(dx)>50&&Math.abs(dx)>Math.abs(dy)*1.5) jbShowImg(jbImgIndex+(dx<0?1:-1));
+  },{passive:true});
+  document.body.appendChild(box);
+  jbShowImg(index);
+}
+
+document.addEventListener('click',function(event){
+  const img=event.target.closest?event.target.closest('img.media-preview, #mediaPendingPreview img'):null;
+  if(!img||img.closest('#imgViewer')) return;
+  const grid=img.closest('.preview-grid');
+  const imgs=grid?[].slice.call(grid.querySelectorAll('img.media-preview, img')):[img];
+  const srcs=imgs.map(function(i){ return i.getAttribute('src'); });
+  if(!srcs[imgs.indexOf(img)]) return;
+  jbOpenImgViewer(srcs,imgs.indexOf(img));
+});
+
+document.addEventListener('keydown',function(event){
+  if(!document.getElementById('imgViewer')) return;
+  if(event.key==='Escape') jbCloseImgViewer();
+  else if(event.key==='ArrowLeft') jbShowImg(jbImgIndex-1);
+  else if(event.key==='ArrowRight') jbShowImg(jbImgIndex+1);
+});
 
 /* ---------- photo de profil : envoi en ligne ---------- */
 var _chooseProfilePhoto=chooseProfilePhoto;
