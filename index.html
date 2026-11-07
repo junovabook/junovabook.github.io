@@ -596,6 +596,8 @@ body.ob-open{overflow:hidden}
 .novabook-panel{border:1px solid var(--border);border-radius:14px;padding:12px;margin:8px 0 6px;background:#19122a}
 .activity.clickable{cursor:pointer}
 .activity.clickable:active{background:#2a2040}
+.verify-banner{background:#3a2a10;border:1px solid #c58a25;border-radius:14px;padding:12px;margin-bottom:12px;font-size:13px;line-height:1.5}
+.verify-banner .row button{margin-top:8px;padding:9px;font-size:12px}
 .post.flash{animation:jbFlash 2.3s ease}
 @keyframes jbFlash{0%,60%{box-shadow:0 0 0 3px #38bdf8}100%{box-shadow:0 0 0 0 rgba(56,189,248,0)}}
 .comment-photo-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:2px 0 8px}
@@ -659,6 +661,7 @@ body.ob-open{overflow:hidden}
 
 <main>
 <section id="home">
+  <div id="jbVerifyBanner" class="verify-banner hidden"><span>📧 Vérifie ton adresse e-mail pour pouvoir publier et commenter.</span><div class="row"><button type="button" class="blue" onclick="jbSendVerification(false)">Renvoyer le message</button><button type="button" onclick="jbRefreshVerified()">J’ai vérifié</button></div></div>
   <div class="panel">
     <h2>✨ L'espace JUNOVABOOK</h2>
     <p>Exprime tes idées, découvre des opinions et échange avec la communauté.</p>
@@ -1366,6 +1369,14 @@ async function publishVoice(){
       return;
     }
 
+    if(jbUser&&jbProfile){
+      const okVoice=await jbPostVoice(blob,document.getElementById('voiceText').value.trim());
+      if(okVoice){
+        megas-=5; updateBalances();
+        cancelVoiceComposer();
+      }
+      return;
+    }
     const data=await fileToDataURL(blob);
 
     const post={
@@ -3305,6 +3316,16 @@ async function openAudioComment(postId){
         return;
       }
 
+      if(post.cloud){
+        status.innerHTML='';
+        const okAudio=await jbPostAudio(post,null,blob);
+        if(okAudio){
+          megas-=1; updateBalances();
+          const panelAudio=document.getElementById('debate-'+postId);
+          if(panelAudio)panelAudio.classList.remove('hidden');
+        }
+        return;
+      }
       try{
         const data=await fileToDataURL(blob);
         post.comments=post.comments||[];
@@ -3429,6 +3450,22 @@ async function startAudioReply(postId,commentId){
         return;
       }
 
+      {
+        const cp=posts.find(p=>String(p.id)===String(postId));
+        const cpar=cp&&findCommentById(cp.comments,commentId);
+        if(cp&&cp.cloud){
+          status.innerHTML='';
+          if(cpar){
+            const okReply=await jbPostAudio(cp,cpar,blob);
+            if(okReply){
+              megas-=1; updateBalances();
+              const panelReply=document.getElementById('debate-'+postId);
+              if(panelReply)panelReply.classList.remove('hidden');
+            }
+          }
+          return;
+        }
+      }
       try{
         const data=await fileToDataURL(blob);
         const currentPost=posts.find(p=>String(p.id)===String(postId));
@@ -4075,7 +4112,7 @@ function jbMediaItems(raw){
     const fid=String(x[0]);
     const cached=jbMediaCache[fid];
     return {
-      type:x[1]==='video'?'video':'image',
+      type:x[1]==='video'?'video':(x[1]==='audio'?'audio':'image'),
       fileId:fid,
       data:cached&&cached!=='error'?cached:'',
       failed:cached==='error'
@@ -4214,7 +4251,7 @@ async function cloudSyncPublications(){
         shares:shareCount[r.$id]||0,
         myLoveId:myLike[r.$id]||null,
         comments:jbBuildTree(comByPost[r.$id]||[],names),
-        type:debat?'debat':'publication',
+        type:debat?'debat':(r.kind==='voice'?'voice':'publication'),
         poll:null
       };
       if(debat){
@@ -4296,6 +4333,7 @@ renderCloudAccount=function(){
     renderActivities();
   }
   if(typeof jbAuthGate==='function') jbAuthGate();
+  if(typeof jbUpdateVerifyBanner==='function') jbUpdateVerifyBanner();
 };
 
 /* actualisation automatique */
@@ -4349,6 +4387,7 @@ var _publish=publish;
 publish=async function(){
   if(!(jbUser&&jbProfile)||composerMode==='voice') return _publish();
   if(jbPublishing) return;
+  if(!jbVerifiedOk()) return;
   const files=[...document.getElementById('postMedia').files];
   const text=document.getElementById('postText').value.trim();
   if(!text&&!files.length){ alert('Écris un message ou ajoute un média.'); return; }
@@ -4635,7 +4674,7 @@ try{
   else if(((navigator.language||'fr')+'').slice(0,2)==='en') JB_LANG='en';
 }catch(e){}
 
-var JB_EN={"✨ L'espace JUNOVABOOK": "✨ The JUNOVABOOK space", "Exprime tes idées, découvre des opinions et échange avec la communauté.": "Share your ideas, discover opinions and talk with the community.", "S'EXPRIMER": "SPEAK UP", "PUBLICATION LIBRE": "FREE POST", "LANCER UN DÉBAT": "START A DEBATE", "🎙️ MA VOIX": "🎙️ MY VOICE", "Créer une publication": "Create a post", "Ton message": "Your message", "Ajouter jusqu'à 4 photos ou une vidéo": "Add up to 4 photos or one video", "Premier choix": "First choice", "Deuxième choix": "Second choice", "Durée du débat": "Debate duration", "Illimitée": "Unlimited", "24 heures": "24 hours", "3 jours": "3 days", "7 jours": "7 days", "Illimitée : on peut débattre à tout moment. Sinon, le débat se ferme tout seul et le résultat final reste affiché.": "Unlimited: people can debate at any time. Otherwise the debate closes by itself and the final result stays visible.", "Publier": "Post", "Annuler": "Cancel", "Choisis un fichier audio ou enregistre ta voix. Publication : 5 MÉGAS de démonstration.": "Choose an audio file or record your voice. Posting costs 5 demo MÉGAS.", "Texte facultatif": "Optional text", "Choisir un fichier audio": "Choose an audio file", "🔴 Enregistrer": "🔴 Record", "Arrêter": "Stop", "En cours…": "Recording…", "Valider l'extrait": "Confirm the clip", "Publier ma voix · 5 MÉGAS": "Post my voice · 5 MÉGAS", "Le microphone nécessite l'autorisation du navigateur. Les données restent sur cet appareil.": "The microphone needs your browser's permission. Data stays on this device.", "🌍 DÉCOUVRIR": "🌍 DISCOVER", "Rechercher dans les publications locales": "Search local posts", "Rechercher": "Search", "Effacer la recherche": "Clear search", "AMI": "FRIENDS", "La recherche réelle de membres nécessite un serveur commun.": "Searching real members needs a shared server.", "Rechercher un nom dans ce prototype": "Search a name in this prototype", "Mes contacts": "My contacts", "Ajoute quelqu'un en ouvrant le lien de profil qu'il partage.": "Add someone by opening the profile link they share.", "Inviter des amis": "Invite friends", "Message d'invitation": "Invitation message", "Remettre le message d'origine": "Restore the original message", "Inviter sur WhatsApp": "Invite on WhatsApp", "Choisir dans mes contacts": "Pick from my contacts", "Indicatif du pays pour les numéros sans « + »": "Country code for numbers without “+”", "Publier sur Facebook": "Post on Facebook", "Tu choisis toi-même qui reçoit l'invitation, et c'est toi qui appuies sur « Envoyer ». L'application ne garde ni ne transmet tes contacts. Ton lien de profil est ajouté automatiquement au message.": "You choose who receives the invitation and you press “Send” yourself. The app neither keeps nor transmits your contacts. Your profile link is added to the message automatically.", "MESSAGES": "MESSAGES", "La messagerie privée entre membres n'est pas encore connectée à un serveur sécurisé.": "Private messaging between members is not yet connected to a secure server.", "Continuer": "Continue", "Marquer comme lues": "Mark all as read", "Effacer l'historique": "Clear history", "Les actions des autres membres sur tes publications apparaissent ici.": "Other members' actions on your posts appear here.", "PROFIL": "PROFILE", "Nom affiché": "Display name", "Enregistrer le nom": "Save name", "Mon compte en ligne": "My online account", "Photo de profil": "Profile photo", "Choisir ma photo": "Choose my photo", "Retirer ma photo": "Remove my photo", "Ta photo est enregistrée en ligne et reste liée à ton profil, même si tu changes de nom.": "Your photo is saved online and stays linked to your profile, even if you change your name.", "Mon lien de profil": "My profile link", "Copier mon lien": "Copy my link", "Partager mon lien": "Share my link", "PARAMÈTRES → APPARENCE": "SETTINGS → APPEARANCE", "Couleur des LOVES": "LOVES color", "Couleur ACCUEIL": "HOME color", "Couleur AMI": "FRIENDS color", "Couleur JUNOVAS": "JUNOVAS color", "Couleur MESSAGE": "MESSAGE color", "Couleur PROFIL": "PROFILE color", "Couleur MA VOIX JUNOVA": "MY VOICE JUNOVA color", "Couleur DÉBATS": "DEBATES color", "Couleur DIFFUSIONS": "SHARES color", "Couleur S'EXPRIMER": "SPEAK UP color", "Couleur PUBLICATION LIBRE (début)": "FREE POST color (start)", "Couleur PUBLICATION LIBRE (fin)": "FREE POST color (end)", "Couleur LANCER UN DÉBAT": "START A DEBATE color", "Appliquer les couleurs": "Apply colors", "Réinitialiser les couleurs": "Reset colors", "Les couleurs sont sauvegardées sur cet appareil.": "Colors are saved on this device.", "Favoris": "Favorites", "Voir mes favoris": "View my favorites", "Accès JUNOVABOOK": "JUNOVABOOK access", "🌱 JUNOVA LIBRE": "🌱 JUNOVA FREE", "Prototype et fonctions locales disponibles.": "Prototype and local features available.", "✨ JUNOVA PLUS": "✨ JUNOVA PLUS", "Évolutions avancées à définir.": "Advanced features to be defined.", "🚀 JUNOVA PRO": "🚀 JUNOVA PRO", "Aucun paiement ni abonnement n'est activé.": "No payment or subscription is active.", "Solde MÉGAS": "MÉGAS balance", "Solde actuel :": "Current balance:", "Réclamer 3 MÉGAS gratuits": "Claim 3 free MÉGAS", "Les MÉGAS et NOVAS n'ont aucune valeur monétaire dans ce prototype.": "MÉGAS and NOVAS have no monetary value in this prototype.", "Installer JUNOVABOOK": "Install JUNOVABOOK", "Tu peux ajouter le site à l'écran d'accueil si le navigateur le permet.": "You can add the site to your home screen if your browser allows it.", "👉 INSTALLER JUNOVABOOK": "👉 INSTALL JUNOVABOOK", "Effacer les publications de cet appareil": "Delete posts from this device", "ACCUEIL": "HOME", "Exprime tes idées ici...": "Share your ideas here...", "POUR": "FOR", "CONTRE": "AGAINST", "Accompagne ta voix d'un texte...": "Add a text to your voice...", "Mot ou sujet": "Word or topic", "Nom ou pseudonyme": "Name or nickname", "Préparer un message": "Prepare a message", "Ton nom ou pseudonyme": "Your name or nickname", "Navigation principale": "Main navigation", "DIFFUSIONS": "SHARES", "☆ Ajouter aux favoris": "☆ Add to favorites", "★ Retirer des favoris": "★ Remove from favorites", "✏️ Modifier": "✏️ Edit", "Supprimer": "Delete", "💬 Discussion": "💬 Discussion", "Ton commentaire": "Your comment", "Écris ton commentaire...": "Write your comment...", "Envoyer": "Send", "🎙️ Commentaire audio": "🎙️ Audio comment", "Aucun commentaire. Lance la discussion !": "No comments yet. Start the discussion!", "↩ Répondre": "↩ Reply", "🎙️ Réponse audio": "🎙️ Audio reply", "💬 COMMENTAIRE": "💬 COMMENT", "↳ RÉPONSE": "↳ REPLY", "🗣️ DÉBAT": "🗣️ DEBATE", "🗳️ Débat": "🗳️ Debate", "Chargement du média…": "Loading media…", "Média indisponible": "Media unavailable", "Aucune notification.": "No notifications.", "Aucune publication pour le moment.": "No posts yet.", "Partager la carte résultat": "Share the result card", "📷 Photo": "📷 Photo", "Répondre à ce commentaire": "Reply to this comment", "Écris ta réponse...": "Write your reply...", "Écris un message ou ajoute une photo.": "Write a message or add a photo.", "NOVABOOK": "NOVABOOK", "Mon compte NOVABOOK": "My NOVABOOK account", "Langue": "Language", "🌍 Langue": "🌍 Language", "Changer mes identifiants": "Change my login details", "Nouvelle adresse e-mail": "New email address", "Mot de passe actuel": "Current password", "Changer mon e-mail": "Change my email", "Nouveau mot de passe": "New password", "Changer mon mot de passe": "Change my password", "Bienvenue sur JUNOVABOOK": "Welcome to JUNOVABOOK", "Crée ton compte gratuit pour rejoindre la communauté.": "Create your free account to join the community.", "Adresse e-mail": "Email address", "Mot de passe (8 caractères minimum)": "Password (at least 8 characters)", "Créer mon compte": "Create my account", "Se connecter": "Log in", "Ta photo de profil": "Your profile photo", "Choisis une photo pour que les autres te reconnaissent.": "Choose a photo so others can recognize you.", "Passer pour le moment": "Skip for now", "Dernière étape : choisis ton nom pour terminer ton inscription.": "Last step: choose your name to finish signing up.", "Se déconnecter": "Log out", "Valider mon nom": "Confirm my name", "Dernière étape : valide ton nom de profil.": "Last step: confirm your profile name.", "Dernière étape : Quel nom de profil veux-tu utiliser ?": "Last step: which profile name do you want to use?", "Connecté": "Logged in", "Crée un compte gratuit pour retrouver ton profil.": "Create a free account to get your profile back.", "Choisis un nom affiché.": "Choose a display name.", "Écris une adresse e-mail valide.": "Enter a valid email address.", "Le mot de passe doit contenir au moins 8 caractères.": "The password must contain at least 8 characters.", "Écris ton adresse e-mail et ton mot de passe.": "Enter your email address and password.", "Connexion impossible pour le moment. Réessaie dans un instant.": "Can't connect right now. Try again in a moment.", "Choisis un nom de 2 à 40 caractères.": "Choose a name between 2 and 40 characters.", "Ce nom est réservé au compte officiel JUNOVABOOK.": "This name is reserved for the official JUNOVABOOK account.", "Écris ton mot de passe actuel.": "Enter your current password.", "Adresse e-mail modifiée.": "Email address updated.", "Mot de passe modifié.": "Password updated.", "Cette publication n’est plus disponible.": "This post is no longer available.", "Cette photo est trop lourde.": "This photo is too heavy.", "Écris un commentaire avant de l’envoyer.": "Write a comment before sending it.", "Écris un message ou ajoute un média.": "Write a message or add media.", "Choisis au maximum quatre fichiers.": "Choose four files at most.", "Pour une vidéo, sélectionne un seul fichier.": "For a video, select a single file.", "Le fichier dépasse 2,5 Mo.": "The file is over 2.5 MB.", "Ajoute les deux choix du débat.": "Add both debate choices.", "Tu peux supprimer uniquement tes propres publications.": "You can only delete your own posts.", "Tu peux modifier uniquement tes propres publications.": "You can only edit your own posts.", "Supprimer cette publication et ses commentaires ?": "Delete this post and its comments?", "Modifier le texte de la publication :": "Edit the post text:", "Les commentaires audio en ligne arrivent bientôt. Écris ton commentaire en texte pour le moment.": "Online audio comments are coming soon. Write your comment as text for now.", "Les réponses audio en ligne arrivent bientôt. Réponds en texte pour le moment.": "Online audio replies are coming soon. Reply with text for now.", "Texte copié. Tu peux le partager sur WhatsApp.": "Text copied. You can share it on WhatsApp.", "Le partage a été annulé ou n’est pas disponible.": "Sharing was cancelled or is not available.", "Copie ce texte pour le partager :": "Copy this text to share it:", "Ce débat est terminé : on ne peut plus voter.": "This debate has ended: voting is closed.", "Nom enregistré.": "Name saved.", "Photo enregistrée.": "Photo saved.", "Action déjà enregistrée. Recharge la page.": "Action already recorded. Reload the page.", "Session expirée. Reconnecte-toi dans PROFIL.": "Session expired. Log in again in PROFILE.", "Photos": "Photos", "Retirer cette photo": "Remove this photo", "Fermer": "Close", "Photo précédente": "Previous photo", "Photo suivante": "Next photo", "Voir la photo de profil": "View profile photo", "Bienvenue": "Welcome"};
+var JB_EN={"✨ L'espace JUNOVABOOK": "✨ The JUNOVABOOK space", "Exprime tes idées, découvre des opinions et échange avec la communauté.": "Share your ideas, discover opinions and talk with the community.", "S'EXPRIMER": "SPEAK UP", "PUBLICATION LIBRE": "FREE POST", "LANCER UN DÉBAT": "START A DEBATE", "🎙️ MA VOIX": "🎙️ MY VOICE", "Créer une publication": "Create a post", "Ton message": "Your message", "Ajouter jusqu'à 4 photos ou une vidéo": "Add up to 4 photos or one video", "Premier choix": "First choice", "Deuxième choix": "Second choice", "Durée du débat": "Debate duration", "Illimitée": "Unlimited", "24 heures": "24 hours", "3 jours": "3 days", "7 jours": "7 days", "Illimitée : on peut débattre à tout moment. Sinon, le débat se ferme tout seul et le résultat final reste affiché.": "Unlimited: people can debate at any time. Otherwise the debate closes by itself and the final result stays visible.", "Publier": "Post", "Annuler": "Cancel", "Choisis un fichier audio ou enregistre ta voix. Publication : 5 MÉGAS de démonstration.": "Choose an audio file or record your voice. Posting costs 5 demo MÉGAS.", "Texte facultatif": "Optional text", "Choisir un fichier audio": "Choose an audio file", "🔴 Enregistrer": "🔴 Record", "Arrêter": "Stop", "En cours…": "Recording…", "Valider l'extrait": "Confirm the clip", "Publier ma voix · 5 MÉGAS": "Post my voice · 5 MÉGAS", "Le microphone nécessite l'autorisation du navigateur. Les données restent sur cet appareil.": "The microphone needs your browser's permission. Data stays on this device.", "🌍 DÉCOUVRIR": "🌍 DISCOVER", "Rechercher dans les publications locales": "Search local posts", "Rechercher": "Search", "Effacer la recherche": "Clear search", "AMI": "FRIENDS", "La recherche réelle de membres nécessite un serveur commun.": "Searching real members needs a shared server.", "Rechercher un nom dans ce prototype": "Search a name in this prototype", "Mes contacts": "My contacts", "Ajoute quelqu'un en ouvrant le lien de profil qu'il partage.": "Add someone by opening the profile link they share.", "Inviter des amis": "Invite friends", "Message d'invitation": "Invitation message", "Remettre le message d'origine": "Restore the original message", "Inviter sur WhatsApp": "Invite on WhatsApp", "Choisir dans mes contacts": "Pick from my contacts", "Indicatif du pays pour les numéros sans « + »": "Country code for numbers without “+”", "Publier sur Facebook": "Post on Facebook", "Tu choisis toi-même qui reçoit l'invitation, et c'est toi qui appuies sur « Envoyer ». L'application ne garde ni ne transmet tes contacts. Ton lien de profil est ajouté automatiquement au message.": "You choose who receives the invitation and you press “Send” yourself. The app neither keeps nor transmits your contacts. Your profile link is added to the message automatically.", "MESSAGES": "MESSAGES", "La messagerie privée entre membres n'est pas encore connectée à un serveur sécurisé.": "Private messaging between members is not yet connected to a secure server.", "Continuer": "Continue", "Marquer comme lues": "Mark all as read", "Effacer l'historique": "Clear history", "Les actions des autres membres sur tes publications apparaissent ici.": "Other members' actions on your posts appear here.", "PROFIL": "PROFILE", "Nom affiché": "Display name", "Enregistrer le nom": "Save name", "Mon compte en ligne": "My online account", "Photo de profil": "Profile photo", "Choisir ma photo": "Choose my photo", "Retirer ma photo": "Remove my photo", "Ta photo est enregistrée en ligne et reste liée à ton profil, même si tu changes de nom.": "Your photo is saved online and stays linked to your profile, even if you change your name.", "Mon lien de profil": "My profile link", "Copier mon lien": "Copy my link", "Partager mon lien": "Share my link", "PARAMÈTRES → APPARENCE": "SETTINGS → APPEARANCE", "Couleur des LOVES": "LOVES color", "Couleur ACCUEIL": "HOME color", "Couleur AMI": "FRIENDS color", "Couleur JUNOVAS": "JUNOVAS color", "Couleur MESSAGE": "MESSAGE color", "Couleur PROFIL": "PROFILE color", "Couleur MA VOIX JUNOVA": "MY VOICE JUNOVA color", "Couleur DÉBATS": "DEBATES color", "Couleur DIFFUSIONS": "SHARES color", "Couleur S'EXPRIMER": "SPEAK UP color", "Couleur PUBLICATION LIBRE (début)": "FREE POST color (start)", "Couleur PUBLICATION LIBRE (fin)": "FREE POST color (end)", "Couleur LANCER UN DÉBAT": "START A DEBATE color", "Appliquer les couleurs": "Apply colors", "Réinitialiser les couleurs": "Reset colors", "Les couleurs sont sauvegardées sur cet appareil.": "Colors are saved on this device.", "Favoris": "Favorites", "Voir mes favoris": "View my favorites", "Accès JUNOVABOOK": "JUNOVABOOK access", "🌱 JUNOVA LIBRE": "🌱 JUNOVA FREE", "Prototype et fonctions locales disponibles.": "Prototype and local features available.", "✨ JUNOVA PLUS": "✨ JUNOVA PLUS", "Évolutions avancées à définir.": "Advanced features to be defined.", "🚀 JUNOVA PRO": "🚀 JUNOVA PRO", "Aucun paiement ni abonnement n'est activé.": "No payment or subscription is active.", "Solde MÉGAS": "MÉGAS balance", "Solde actuel :": "Current balance:", "Réclamer 3 MÉGAS gratuits": "Claim 3 free MÉGAS", "Les MÉGAS et NOVAS n'ont aucune valeur monétaire dans ce prototype.": "MÉGAS and NOVAS have no monetary value in this prototype.", "Installer JUNOVABOOK": "Install JUNOVABOOK", "Tu peux ajouter le site à l'écran d'accueil si le navigateur le permet.": "You can add the site to your home screen if your browser allows it.", "👉 INSTALLER JUNOVABOOK": "👉 INSTALL JUNOVABOOK", "Effacer les publications de cet appareil": "Delete posts from this device", "ACCUEIL": "HOME", "Exprime tes idées ici...": "Share your ideas here...", "POUR": "FOR", "CONTRE": "AGAINST", "Accompagne ta voix d'un texte...": "Add a text to your voice...", "Mot ou sujet": "Word or topic", "Nom ou pseudonyme": "Name or nickname", "Préparer un message": "Prepare a message", "Ton nom ou pseudonyme": "Your name or nickname", "Navigation principale": "Main navigation", "DIFFUSIONS": "SHARES", "☆ Ajouter aux favoris": "☆ Add to favorites", "★ Retirer des favoris": "★ Remove from favorites", "✏️ Modifier": "✏️ Edit", "Supprimer": "Delete", "💬 Discussion": "💬 Discussion", "Ton commentaire": "Your comment", "Écris ton commentaire...": "Write your comment...", "Envoyer": "Send", "🎙️ Commentaire audio": "🎙️ Audio comment", "Aucun commentaire. Lance la discussion !": "No comments yet. Start the discussion!", "↩ Répondre": "↩ Reply", "🎙️ Réponse audio": "🎙️ Audio reply", "💬 COMMENTAIRE": "💬 COMMENT", "↳ RÉPONSE": "↳ REPLY", "🗣️ DÉBAT": "🗣️ DEBATE", "🗳️ Débat": "🗳️ Debate", "Chargement du média…": "Loading media…", "Média indisponible": "Media unavailable", "Aucune notification.": "No notifications.", "Aucune publication pour le moment.": "No posts yet.", "Partager la carte résultat": "Share the result card", "📷 Photo": "📷 Photo", "Répondre à ce commentaire": "Reply to this comment", "Écris ta réponse...": "Write your reply...", "Écris un message ou ajoute une photo.": "Write a message or add a photo.", "NOVABOOK": "NOVABOOK", "Mon compte NOVABOOK": "My NOVABOOK account", "Langue": "Language", "🌍 Langue": "🌍 Language", "Changer mes identifiants": "Change my login details", "Nouvelle adresse e-mail": "New email address", "Mot de passe actuel": "Current password", "Changer mon e-mail": "Change my email", "Nouveau mot de passe": "New password", "Changer mon mot de passe": "Change my password", "Bienvenue sur JUNOVABOOK": "Welcome to JUNOVABOOK", "Crée ton compte gratuit pour rejoindre la communauté.": "Create your free account to join the community.", "Adresse e-mail": "Email address", "Mot de passe (8 caractères minimum)": "Password (at least 8 characters)", "Créer mon compte": "Create my account", "Se connecter": "Log in", "Ta photo de profil": "Your profile photo", "Choisis une photo pour que les autres te reconnaissent.": "Choose a photo so others can recognize you.", "Passer pour le moment": "Skip for now", "Dernière étape : choisis ton nom pour terminer ton inscription.": "Last step: choose your name to finish signing up.", "Se déconnecter": "Log out", "Valider mon nom": "Confirm my name", "Dernière étape : valide ton nom de profil.": "Last step: confirm your profile name.", "Dernière étape : Quel nom de profil veux-tu utiliser ?": "Last step: which profile name do you want to use?", "Connecté": "Logged in", "Crée un compte gratuit pour retrouver ton profil.": "Create a free account to get your profile back.", "Choisis un nom affiché.": "Choose a display name.", "Écris une adresse e-mail valide.": "Enter a valid email address.", "Le mot de passe doit contenir au moins 8 caractères.": "The password must contain at least 8 characters.", "Écris ton adresse e-mail et ton mot de passe.": "Enter your email address and password.", "Connexion impossible pour le moment. Réessaie dans un instant.": "Can't connect right now. Try again in a moment.", "Choisis un nom de 2 à 40 caractères.": "Choose a name between 2 and 40 characters.", "Ce nom est réservé au compte officiel JUNOVABOOK.": "This name is reserved for the official JUNOVABOOK account.", "Écris ton mot de passe actuel.": "Enter your current password.", "Adresse e-mail modifiée.": "Email address updated.", "Mot de passe modifié.": "Password updated.", "Cette publication n’est plus disponible.": "This post is no longer available.", "Cette photo est trop lourde.": "This photo is too heavy.", "Écris un commentaire avant de l’envoyer.": "Write a comment before sending it.", "Écris un message ou ajoute un média.": "Write a message or add media.", "Choisis au maximum quatre fichiers.": "Choose four files at most.", "Pour une vidéo, sélectionne un seul fichier.": "For a video, select a single file.", "Le fichier dépasse 2,5 Mo.": "The file is over 2.5 MB.", "Ajoute les deux choix du débat.": "Add both debate choices.", "Tu peux supprimer uniquement tes propres publications.": "You can only delete your own posts.", "Tu peux modifier uniquement tes propres publications.": "You can only edit your own posts.", "Supprimer cette publication et ses commentaires ?": "Delete this post and its comments?", "Modifier le texte de la publication :": "Edit the post text:", "Les commentaires audio en ligne arrivent bientôt. Écris ton commentaire en texte pour le moment.": "Online audio comments are coming soon. Write your comment as text for now.", "Les réponses audio en ligne arrivent bientôt. Réponds en texte pour le moment.": "Online audio replies are coming soon. Reply with text for now.", "Texte copié. Tu peux le partager sur WhatsApp.": "Text copied. You can share it on WhatsApp.", "Le partage a été annulé ou n’est pas disponible.": "Sharing was cancelled or is not available.", "Copie ce texte pour le partager :": "Copy this text to share it:", "Ce débat est terminé : on ne peut plus voter.": "This debate has ended: voting is closed.", "Nom enregistré.": "Name saved.", "Photo enregistrée.": "Photo saved.", "Action déjà enregistrée. Recharge la page.": "Action already recorded. Reload the page.", "Session expirée. Reconnecte-toi dans PROFIL.": "Session expired. Log in again in PROFILE.", "📧 Vérifie ton adresse e-mail pour pouvoir publier et commenter.": "📧 Verify your email address to post and comment.", "Renvoyer le message": "Resend the message", "J’ai vérifié": "I've verified", "Vérifie d’abord ton adresse e-mail : ouvre le message reçu et appuie sur le lien. Tu peux renvoyer le message depuis l’accueil.": "First verify your email address: open the message you received and tap the link. You can resend the message from the home screen.", "Adresse e-mail vérifiée. Merci !": "Email address verified. Thank you!", "Ton adresse n’est pas encore vérifiée. Ouvre le message reçu et appuie sur le lien.": "Your address is not verified yet. Open the message you received and tap the link.", "Ce lien de vérification est invalide ou expiré. Renvoie un nouveau message depuis l’accueil.": "This verification link is invalid or has expired. Send a new message from the home screen.", "Photos": "Photos", "Retirer cette photo": "Remove this photo", "Fermer": "Close", "Photo précédente": "Previous photo", "Photo suivante": "Next photo", "Voir la photo de profil": "View profile photo", "Bienvenue": "Welcome"};
 
 function jbUnits(x){
   return String(x).replace(/jours?/,function(m){return m==='jour'?'day':'days';})
@@ -4993,6 +5032,70 @@ async function jbSendComment(post,text,files,parent,onPosted){
   }
 }
 
+function jbAudioExt(blob){
+  const ty=(blob&&blob.type)||'';
+  if(ty.indexOf('mp4')!==-1||ty.indexOf('m4a')!==-1||ty.indexOf('aac')!==-1) return 'm4a';
+  if(ty.indexOf('mpeg')!==-1||ty.indexOf('mp3')!==-1) return 'mp3';
+  if(ty.indexOf('ogg')!==-1) return 'ogg';
+  if(ty.indexOf('wav')!==-1) return 'wav';
+  return 'webm';
+}
+
+async function jbPostAudio(post,parent,blob){
+  if(!jbVerifiedOk()) return false;
+  if(jbCommentBusy) return false;
+  jbCommentBusy=true;
+  let fid=null;
+  try{
+    fid=await cloudUploadFile(blob,'audio.'+jbAudioExt(blob));
+    const data={publicationId:String(post.id),userId:jbUser.$id,texte:' ',parentId:parent?String(parent.id):'',mediaIds:JSON.stringify([[fid,'audio']])};
+    const camp=avisCamp(post);
+    if(camp!==null) data.camp=camp;
+    await cloudApi('POST','commentaires/documents',{
+      documentId:Appwrite.ID.unique(),
+      data:data,
+      permissions:cloudProfilePermissions(jbUser.$id)
+    });
+    if(parent){
+      if(parent.authorId&&parent.authorId!==jbUser.$id) jbNotify(parent.authorId,post,'replyyou');
+      if(post.authorId&&post.authorId!==parent.authorId) jbNotifyOwner(post,'reply');
+    }else{
+      jbNotifyOwner(post,'comment');
+    }
+    await cloudSyncPublications();
+    return true;
+  }catch(e){
+    if(fid) cloudDeleteFile(fid);
+    alert(jbErr(e));
+    return false;
+  }finally{
+    jbCommentBusy=false;
+  }
+}
+
+async function jbPostVoice(blob,text){
+  if(!jbVerifiedOk()) return false;
+  if(jbPublishing) return false;
+  jbPublishing=true;
+  let fid=null;
+  try{
+    fid=await cloudUploadFile(blob,'voix.'+jbAudioExt(blob));
+    await cloudApi('POST','publications/documents',{
+      documentId:Appwrite.ID.unique(),
+      data:{userId:jbUser.$id,texte:text||' ',createdAt:new Date().toISOString(),kind:'voice',mediaIds:JSON.stringify([[fid,'audio']])},
+      permissions:cloudProfilePermissions(jbUser.$id)
+    });
+    await cloudSyncPublications();
+    return true;
+  }catch(e){
+    if(fid) cloudDeleteFile(fid);
+    alert(jbErr(e));
+    return false;
+  }finally{
+    jbPublishing=false;
+  }
+}
+
 var _addComment=addComment;
 addComment=async function(id){
   const post=posts.find(function(p){ return String(p.id)===String(id); });
@@ -5003,6 +5106,7 @@ addComment=async function(id){
   const files=(jbCommentFiles[id]||[]).slice();
   if(!text&&!files.length){ alert('Écris un commentaire avant de l’envoyer.'); return; }
   if(!canGiveAvis(post)) return;
+  if(!jbVerifiedOk()) return;
   const ok=await jbSendComment(post,text,files,null,function(){
     input.value='';
     jbCommentFiles[id]=[];
@@ -5021,6 +5125,7 @@ replyToComment=function(postId,commentId){
   const comment=findCommentById(post.comments,commentId);
   if(!comment) return;
   if(!canGiveAvis(post)) return;
+  if(!jbVerifiedOk()) return;
   jbOpenCommentModal('Répondre à ce commentaire','Écris ta réponse...',function(text,files){
     return jbSendComment(post,text,files,comment,null).then(function(ok){
       if(ok){
@@ -5030,20 +5135,6 @@ replyToComment=function(postId,commentId){
       return ok;
     });
   });
-};
-
-/* audio : pas encore en ligne pour les publications partagées */
-var _openAudioComment=openAudioComment;
-openAudioComment=function(postId){
-  const post=posts.find(function(p){ return String(p.id)===String(postId); });
-  if(post&&post.cloud){ alert('Les commentaires audio en ligne arrivent bientôt. Écris ton commentaire en texte pour le moment.'); return; }
-  return _openAudioComment(postId);
-};
-var _startAudioReply=startAudioReply;
-startAudioReply=function(postId,commentId){
-  const post=posts.find(function(p){ return String(p.id)===String(postId); });
-  if(post&&post.cloud){ alert('Les réponses audio en ligne arrivent bientôt. Réponds en texte pour le moment.'); return; }
-  return _startAudioReply(postId,commentId);
 };
 
 /* ---------- diffusions : compteur partagé ---------- */
@@ -5145,6 +5236,58 @@ async function jbChangePassword(){
   }catch(e){ alert(jbErr(e)); }
 }
 
+/* ---------- vérification de l'adresse e-mail ---------- */
+var JB_REQUIRE_VERIFIED=true;
+
+function jbVerified(){ return !!(jbUser&&jbUser.emailVerification); }
+
+function jbVerifiedOk(){
+  if(!JB_REQUIRE_VERIFIED||jbVerified()) return true;
+  alert('Vérifie d’abord ton adresse e-mail : ouvre le message reçu et appuie sur le lien. Tu peux renvoyer le message depuis l’accueil.');
+  return false;
+}
+
+function jbUpdateVerifyBanner(){
+  const b=document.getElementById('jbVerifyBanner');
+  if(!b) return;
+  b.classList.toggle('hidden',!(jbUser&&jbProfile&&!jbVerified()&&JB_REQUIRE_VERIFIED));
+}
+
+async function jbSendVerification(silent){
+  if(!jbUser) return false;
+  try{
+    await jbAccount.createVerification(location.origin+location.pathname+'?jbverify=1');
+    if(!silent) alert('Message envoyé à '+jbUser.email+'. Regarde aussi dans les courriers indésirables.');
+    return true;
+  }catch(e){
+    if(!silent) alert(jbErr(e));
+    return false;
+  }
+}
+
+async function jbRefreshVerified(){
+  try{
+    jbUser=await jbAccount.get();
+    jbUpdateVerifyBanner();
+    if(jbVerified()) alert('Adresse e-mail vérifiée. Merci !');
+    else alert('Ton adresse n’est pas encore vérifiée. Ouvre le message reçu et appuie sur le lien.');
+  }catch(e){ alert(jbErr(e)); }
+}
+
+async function jbHandleVerifyLink(){
+  let q;
+  try{ q=new URLSearchParams(location.search); }catch(e){ return; }
+  if(!q.get('jbverify')||!q.get('userId')||!q.get('secret')) return;
+  try{
+    await jbAccount.updateVerification(q.get('userId'),q.get('secret'));
+    if(jbUser) jbUser=await jbAccount.get();
+    alert('Adresse e-mail vérifiée. Merci !');
+  }catch(e){
+    alert('Ce lien de vérification est invalide ou expiré. Renvoie un nouveau message depuis l’accueil.');
+  }
+  try{ history.replaceState(null,'',location.pathname); }catch(e){}
+}
+
 /* ---------- pages d'accueil : inscription puis photo ---------- */
 var jbAuthChecked=false, jbOnboardingPhoto=false;
 
@@ -5226,6 +5369,7 @@ async function obSignUp(){
       await jbAccount.create(Appwrite.ID.unique(),email,password,pseudo);
       await jbAccount.createEmailPasswordSession(email,password);
       jbUser=await jbAccount.get();
+      jbSendVerification(true);
     }
     try{ localStorage.setItem(PROFILE_STORE,pseudo); }catch(e){}
     const dn=obEl('displayName'); if(dn) dn.value=pseudo;
@@ -5271,8 +5415,8 @@ async function obLogin(){
 
 var _cloudStart=cloudStart;
 cloudStart=async function(){
-  try{ await _cloudStart(); }
-  finally{ jbAuthChecked=true; jbAuthGate(); }
+  try{ await _cloudStart(); await jbHandleVerifyLink(); }
+  finally{ jbAuthChecked=true; jbAuthGate(); jbUpdateVerifyBanner(); }
 };
 
 /* démarrage : traduction de l'écran */
